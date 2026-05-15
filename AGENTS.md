@@ -27,15 +27,14 @@ This workspace is managed using the **Antigravity Agent Manager** and the **Gemi
 
 ## Platform Structure
 
-### 000ALL (The Cognitive Silo)
+### 000all (The Cognitive Silo)
 - **sCognition:** Central repository for architectural plans, blueprints, and agent narratives.
 
-### 00FLOW (SDLC Platform)
+### 00flow (SDLC Platform)
 - **sSeed:** Bootstrap workspace for platform initialization and taxonomy management. Contains `init-workspace.ps1`.
 - **sForge:** Central repository for all external and internal binaries/artifacts.
 - **sBuilder:** Specialized workspace for the build orchestration and cache management.
 - **sLatentLingua:** The "Grammar Studio" for developing DSLs using simplified eBNF/WSN.
-
 ### 00AAIF (Agent Architecture & Integration Framework)
 - Focuses on transforming and modernizing agentic standards.
 
@@ -53,13 +52,13 @@ This workspace is managed using the **Antigravity Agent Manager** and the **Gemi
 
 ## Workflow Conventions
 - **Task Tracking:** Complex tasks should be documented in `/conductor/tasks/`.
-- **Taxonomy Initialization:** Use `00FLOW/sSeed/init-workspace.ps1` to initialize or refine any workspace structure.
+- **Taxonomy Initialization:** Use `00flow/sseed/init-workspace.ps1` to initialize or refine any workspace structure.
 - **Sovereign Root:** The project root is defined by the **`.gitroot`** file. This ensures that Gemini-CLI and Antigravity perceive the entire fleet as a single coordinated entity, regardless of nested `.git` repositories in individual workspaces.
 - **AAIF Standard:** We strictly follow the AAIF specification. All instructional context is stored in **`AGENTS.md`** files. The CLI is configured to bypass `.git` boundaries and stop only at the `.gitroot` to allow global instructions to flow down.
 - **Semantic Taxonomy:** All workspaces follow a semantically based directory-tree taxonomy:
-    - `nnnnn-<semantic-name>`: "Old school" repository/saved folders (5-digit sequence).
-    - `Cnnnn-<semantic-name>`: Cognitive ephemeral directories (4-digit sequence with 'C' prefix), used by agents, Antigravity, and Gemini-CLI.
-    - `nnn-<semantic-name>`: Subdirectories within the above (3-digit sequence).
+    - `nnnnn-<semantic-name>`: "Old school" repository/saved folders (5-digit sequence, strictly lowercase).
+    - `cnnnn-<semantic-name>`: Cognitive ephemeral directories (4-digit sequence with 'c' prefix, strictly lowercase), used by agents, Antigravity, and Gemini-CLI.
+    - `nnn-<semantic-name>`: Subdirectories within the above (3-digit sequence, strictly lowercase).
 - **Context Management:** Use `AGENTS.md` files in subdirectories for module-specific rules.
 - **Integration:** All agents should respect the `TERM=xterm-256color` setting for optimal terminal output.
 
@@ -83,6 +82,6 @@ When integrating the Jules Agent:
 ## Environment Preparation
 1. Ensure `gemini` is installed and running.
 2. **Redirect Metadata:** To ensure `gemini` does not use the user home directory for temporary state, set the following environment variable:
-   - `GEMINI_CLI_HOME=C:\aCogSpaceSeed\C0990-ephemeral-scratch`
+   - `GEMINI_CLI_HOME=C:\aCogSpaceSeed\c0990-ephemeral-scratch`
 3. Run `/ide install` in the Gemini CLI to link with Antigravity.
 4. Use the **Agent Manager** panel in Antigravity to interact with these roles.
