@@ -27,10 +27,10 @@ This workspace is managed using the **Antigravity Agent Manager** and the **Gemi
 
 ## Platform Structure
 
-### 000all (The Cognitive Silo)
+### 000ALL (The Cognitive Silo)
 - **sCognition:** Central repository for architectural plans, blueprints, and agent narratives.
 
-### 00flow (SDLC Platform)
+### 00FLOW (SDLC Platform)
 - **sSeed:** Bootstrap workspace for platform initialization and taxonomy management. Contains `init-workspace.ps1`.
 - **sForge:** Central repository for all external and internal binaries/artifacts.
 - **sBuilder:** Specialized workspace for the build orchestration and cache management.
@@ -52,7 +52,7 @@ This workspace is managed using the **Antigravity Agent Manager** and the **Gemi
 
 ## Workflow Conventions
 - **Task Tracking:** Complex tasks should be documented in `/conductor/tasks/`.
-- **Taxonomy Initialization:** Use `00flow/sseed/init-workspace.ps1` to initialize or refine any workspace structure.
+- **Taxonomy Initialization:** Use `00FLOW/sSeed/init-workspace.ps1` to initialize or refine any workspace structure.
 - **Sovereign Root:** The project root is defined by the **`.gitroot`** file. This ensures that Gemini-CLI and Antigravity perceive the entire fleet as a single coordinated entity, regardless of nested `.git` repositories in individual workspaces.
 - **AAIF Standard:** We strictly follow the AAIF specification. All instructional context is stored in **`AGENTS.md`** files. The CLI is configured to bypass `.git` boundaries and stop only at the `.gitroot` to allow global instructions to flow down.
 - **Semantic Taxonomy:** All workspaces follow a semantically based directory-tree taxonomy:

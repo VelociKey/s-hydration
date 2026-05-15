@@ -1,15 +1,18 @@
 # aCogSpaceSeed Root Gitignore
 
-# Silos (Managed as separate repositories)
-/000ALL/
-/00FLOW/
-/86SREF/
-/.agents/
-/.gemini/
-
-# Hollow Silos (Keep only directory structure tracking if needed)
+# Hollow Silos (Managed as separate repositories, keeping directory structure)
+/000ALL/*
+!/000ALL/.gitkeep
+/00FLOW/*
+!/00FLOW/.gitkeep
+/86SREF/*
+!/86SREF/.gitkeep
 /00AAIF/*
 !/00AAIF/.gitkeep
+
+# Other managed directories
+/.agents/
+/.gemini/
 
 # Ephemeral Scratch
 /C0990-ephemeral-scratch/*

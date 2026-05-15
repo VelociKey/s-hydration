@@ -1,12 +1,12 @@
 go 1.26.3
 
 use (
-        ./00flow/sforge
-        ./00flow/slatentlingua
-        ./00flow/slatentlingua/40000-communication-contracts
-        ./00flow/sseed
-        ./000all/scognition
-        ./00flow/sbuilder
-        ./00flow/sagents
+        ./00FLOW/sForge
+        ./00FLOW/sLatentLingua
+        ./00FLOW/sLatentLingua/40000-communication-contracts
+        ./00FLOW/sSeed
+        ./000ALL/sCognition
+        ./00FLOW/sBuilder
+        ./00FLOW/sAgents
 )
 
