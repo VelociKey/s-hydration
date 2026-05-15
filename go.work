@@ -1,0 +1,11 @@
+go 1.26.3
+
+use (
+	./00FLOW/sForge
+	./00FLOW/sLatentLingua
+	./00FLOW/sLatentLingua/40000-Communication-Contracts
+	./00FLOW/sSeed
+	./000ALL/sCognition
+	./00FLOW/sBuilder
+	./00FLOW/sAgents
+)

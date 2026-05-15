@@ -1,0 +1,23 @@
+# aCogSpaceSeed Root Gitignore
+
+# Hollow Silos (Keep only directory structure)
+/00AAIF/*
+!/00AAIF/.gitkeep
+
+/00FLOW/*
+!/00FLOW/.gitkeep
+!/00FLOW/sLatentLingua/
+!/00FLOW/sSeed/
+
+/86SREF/*
+!/86SREF/.gitkeep
+
+/C0990-ephemeral-scratch/*
+!/C0990-ephemeral-scratch/.gitkeep
+
+# The following are fully tracked:
+# - 000ALL/
+# - conductor/
+# - .gemini/
+# - .agents/
+# - All files at the root level (go.work, AGENTS.md, .gitroot, etc.)
