@@ -1,0 +1,20 @@
+# Sovereign Fleet Claude-Code Context Ignore Rules
+
+# 1. Prune sovereign binary payloads and toolchain engines
+/00flow/s-forge/92000-external-toolchains/*
+/00flow/s-forge/91000-ext-artifact-cognition-intelligence/*
+/00flow/s-forge/94000-internal-actors/*.exe
+/00flow/s-forge/96000-internal-binaries/*
+/00flow/s-forge/97000-internal-toolchains/*
+**/*.exe
+**/*.wasm
+
+# 2. Prune ephemeral scratch spaces and log files
+/c0990-ephemeral-scratch/*
+**/trivy_report.json
+**/full_trivy_report.json
+**/*.log
+
+# 3. Prune internal VCS indexes
+**/.git/*
+**/.gitroot

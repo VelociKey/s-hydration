@@ -1,11 +1,13 @@
 go 1.26.3
 
 use (
-        ./00FLOW/sForge
-        ./00FLOW/sLatentLingua
-        ./00FLOW/sSeed
-        ./000ALL/sCognition
-        ./00FLOW/sHydrator
-        ./00FLOW/sAgents
+        ./00flow/s-forge
+        ./00flow/s-latentlingua
+        ./00flow/s-seed
+        ./000all/s-cognition
+        ./00flow/s-hydration
+        ./00flow/s-actors
+        ./00flow/s-aether
+        ./00flow/s-natives
 )
 

@@ -6,7 +6,7 @@ This plan outlines the migration of the Agent Architecture & Integration Framewo
 
 | Component | Legacy (A2A) | Sovereign (AAIF 2.0) |
 | :--- | :--- | :--- |
-| **Networking** | TCP / gRPC (A2A v1.0) | **QUIC / WebTransport (WASI 0.3)** |
+| **Networking** | TCP / gRPC (A2A v1.0) | **raw QUIC (quic-go)** |
 | **Serialization** | Protobuf / Structs (A2A v1.0) | **CODED / A2UI Blueprints** (weBNF) |
 | **Logic Layer** | Dart / Go (Mixed) | **Go 1.26 ("Green Tea")** (`wasip3`) |
 | **View Layer** | Flutter (React-style) | **Flutter 3.41 ("Fire Horse")** (MV4) |
@@ -14,11 +14,11 @@ This plan outlines the migration of the Agent Architecture & Integration Framewo
 | **Specification** | English Narratives | **weBNF Grammars** |
 
 ## 1.1 Grammar-First Specification
-AAIF 2.0 is defined as a machine-executable grammar first. English descriptions in `sCognition` serve as the narrative frame for the underlying weBNF logic. This logic is bridged with the **Agentic AI Foundation (Linux Foundation)** standards, specifically the **Model Context Protocol (MCP)** and the **AGENTS.md** convention, to ensure global federation conformance.
+AAIF 2.0 is defined as a machine-executable grammar first. English descriptions in `s-cognition` serve as the narrative frame for the underlying weBNF logic. This logic is bridged with the **Agentic AI Foundation (Linux Foundation)** standards, specifically the **Model Context Protocol (MCP)** and the **AGENTS.md** convention, to ensure global federation conformance.
 
-## 2. Phase 1: Cognitive Foundation (sCognition)
+## 2. Phase 1: Cognitive Foundation (s-cognition)
 
-Add foundational specifications to `000ALL/sCognition`.
+Add foundational specifications to `000all/s-cognition`.
 
 ### 2.1. CODED Protocol Definition
 - **Location**: `43000-grammar-transports/CODED-spec.md`
@@ -33,10 +33,10 @@ Add foundational specifications to `000ALL/sCognition`.
 - **Location**: `21000-presentation-contexts/MV4-standards.md`
 - **Objective**: Document the transition to MV4 in Flutter, focusing on dynamic tokens and Go-driven state projections.
 
-## 3. Phase 2: Toolchain Implementation (sLatentLingua & sForge)
+## 3. Phase 2: Toolchain Implementation (s-latentlingua & s-forge)
 
 ### 3.1. Foundational CODED Grammar
-- Create `CODED.webnf` in `sLatentLingua`.
+- Create `CODED.webnf` in `s-latentlingua`.
 - This grammar will define the "primitive types" and "message structures" for all agentic communication.
 
 ### 3.2. Go-to-Dart "Surface" Bridge
@@ -58,12 +58,12 @@ Add foundational specifications to `000ALL/sCognition`.
 - Flutter/MV4 visual validation of the result.
 
 ### 4.5. Conformance Verification
-All migration steps must be validated against the formal grammars. Conformance status is tracked in the **[Conformance Ledger](file:///c:/aCogSpaceSeed/000ALL/sCognition/80000-system-governance/conformance-ledger.md)**.
+All migration steps must be validated against the formal grammars. Conformance status is tracked in the **[Conformance Ledger](file:///c:/aCogSpaceSeed/000all/s-cognition/80000-system-governance/conformance-ledger.md)**.
 
 ## 5. Next Steps
 
-1. [ ] Create the `CODED` specification draft in `sCognition`.
-2. [ ] Initialize `00AAIF/standards` with the new protocol markers.
+1. [ ] Create the `CODED` specification draft in `s-cognition`.
+2. [ ] Initialize `00aaif/standards` with the new protocol markers.
 3. [ ] Prototype a simple "Counter" or "Hello" app using Go-Logic -> CODED -> Flutter MV4 Surface.
 
 ---
