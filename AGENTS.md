@@ -2,6 +2,13 @@
 
 This workspace is managed using the **Antigravity Agent Manager** and the **Gemini CLI**.
 
+## The Cognitive Linguistic Foundation of 00FLOW
+
+Our entire software and agent development platform leads with formal grammar, strict semantic/lexical taxonomies, and Domain Specific Languages (DSLs) to optimize integration with LLMs and SLMs in a language-based world:
+- **Deterministic Cognitive Rails:** Restricting system configurations, build harnesses, and promotions to non-recursive, flat-block DSL grammars (`.wag` files) eliminates AI agent hallucination and state-tracking errors. The grammar represents the absolute mathematical boundary of valid intent.
+- **Lexical Directory Taxonomy:** Our standardized 5-digit/4-digit directory structure acts as a physical lexical grammar, enabling LLMs to navigate the fleet with $O(1)$ search latency and zero semantic drift.
+- **Syntactic Supply-Chain Auditing:** Formal language contracts enable specialized agents to audit system architecture, cryptoseals, and dependencies purely at the syntactic and AST level, guaranteeing air-gapped zero-trust execution.
+
 ## Agent Roles
 
 ### Conductor
@@ -33,7 +40,7 @@ This workspace is managed using the **Antigravity Agent Manager** and the **Gemi
 ### 00FLOW (SDLC Platform)
 - **sSeed:** Bootstrap workspace for platform initialization and taxonomy management. Contains `init-workspace.ps1`.
 - **sForge:** Central repository for all external and internal binaries/artifacts.
-- **sBuilder:** Specialized workspace for the build orchestration and cache management.
+- **sHydrator:** The NATVS Hydration Engine orchestrating Dynamic build synthesis and Static asset ingestion.
 - **sLatentLingua:** The "Grammar Studio" for developing DSLs using simplified eBNF/WSN.
 ### 00AAIF (Agent Architecture & Integration Framework)
 - Focuses on transforming and modernizing agentic standards.
@@ -85,3 +92,11 @@ When integrating the Jules Agent:
    - `GEMINI_CLI_HOME=C:\aCogSpaceSeed\c0990-ephemeral-scratch`
 3. Run `/ide install` in the Gemini CLI to link with Antigravity.
 4. Use the **Agent Manager** panel in Antigravity to interact with these roles.
+
+### Sovereign Toolchain Paths
+To prevent background command and filesystem search bottlenecks, all agents must utilize the following paths directly:
+- **Sovereign Go executable:** `C:\aCogSpaceSeed\00FLOW\sForge\92000-external-toolchains\go\bin\go.exe`
+- **Sovereign Bazel Orchestration:** Managed under `C:\aCogSpaceSeed\00FLOW\sHydrator\21000-build-orchestration`
+- **Sovereign Ephemeral Scratch:** `C:\aCogSpaceSeed\c0990-ephemeral-scratch`
+- **Cognitive Layer Silo (000ALL):** `C:\aCogSpaceSeed\000ALL`
+- **Sovereign Meta-Grammar (webnf.sn):** `C:\aCogSpaceSeed\00FLOW\sLatentLingua\30100-meta-foundation\webnf.sn` (The authoritative grammar used for all generated DSL grammars, which will have the name form `<dslname>.wag`, and all grammar-conforming programs, which will have the name form `<program_name>_<dsl_name>.webnf`).
