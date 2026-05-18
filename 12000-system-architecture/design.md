@@ -62,7 +62,7 @@ To ensure that promoted pruned assets are never altered in the local authority s
 
 ## 3. weBNF Registry Schema Governance
 
-The SBOM is governed strictly by the **`external_artifact`** DSL, defined inside [external_artifact.wag](file:///C:/aCogSpaceSeed/00FLOW/sLatentLingua/external_artifact.wag):
+The SBOM is governed strictly by the **`external_artifact`** DSL, defined inside [external_artifact.wag](file:///C:/aCogSpaceSeed/00flow/s-latentlingua/external_artifact.wag):
 
 ```ebnf
 external_artifact ::= header *record;
@@ -70,7 +70,7 @@ header ::= "SBOM-V2" NL timestamp NL tool_id NL;
 record ::= artifact_name "|" version "|" original_hash "|" pruned_hash "|" original_size "|" pruned_size "|" timestamp NL;
 ```
 
-This strict grammar enforces physical layout and validation rails on the resulting database file [sbom_external_artifact.webnf](file:///C:/aCogSpaceSeed/00FLOW/sForge/90100-rehydration-seed/sbom_external_artifact.webnf), making it immune to injection attacks or parsing hallucinations.
+This strict grammar enforces physical layout and validation rails on the resulting database file [sbom_external_artifact.webnf](file:///C:/aCogSpaceSeed/00flow/s-forge/90100-rehydration-seed/sbom_external_artifact.webnf), making it immune to injection attacks or parsing hallucinations.
 
 ---
 
@@ -84,7 +84,7 @@ Standard Go, Dart, and Python builds dynamically fetch dependencies at compile t
 
 ### 4.2 The Solution: Logic-Libraries Vendoring
 To eliminate external runtime imports, all critical logic-libraries are formally **rehydrated as external artifacts** inside the local authority registry (`sbom_external_artifact.webnf`). They are ingested, metobolically pruned, sealed, and promoted to:
-`00FLOW/sForge/90200-logic-libraries/`
+`00flow/s-forge/90200-logic-libraries/`
 
 We use local Go `replace` mappings to bind public import addresses directly to these local repository folders:
 ```go

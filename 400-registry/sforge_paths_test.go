@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 	"path/filepath"
-	"sov.fleet/sLatentLingua/02000-logic-libraries/snparser"
+	"sov.fleet/s-latentlingua/02000-logic-libraries/snparser"
 )
 
 func TestHydratorGrammarSyntax(t *testing.T) {
@@ -64,12 +64,12 @@ func TestSForgePathsSyntax(t *testing.T) {
 	t.Logf("Extracted %d flat logical path mappings", len(paths))
 
 	// 4. Test TransitionPath logic directly
-	rawPath := `"C:/aCogSpaceSeed/00FLOW/sForge";`
+	rawPath := `"C:/aCogSpaceSeed/00flow/s-forge";`
 	nativePath := TransitionPath(rawPath)
 	
-	// On Windows this becomes C:\aCogSpaceSeed\00FLOW\sForge
-	// On Linux it becomes C:/aCogSpaceSeed/00FLOW/sForge
-	expectedSlash := filepath.FromSlash("C:/aCogSpaceSeed/00FLOW/sForge")
+	// On Windows this becomes C:\aCogSpaceSeed\00flow\s-forge
+	// On Linux it becomes C:/aCogSpaceSeed/00flow/s-forge
+	expectedSlash := filepath.FromSlash("C:/aCogSpaceSeed/00flow/s-forge")
 	
 	if nativePath != expectedSlash {
 		t.Errorf("Transition failed. Expected %q, got %q", expectedSlash, nativePath)

@@ -1,4 +1,4 @@
-:Silo:sHydrator:Registry:v1
+:Silo:sHydration:Registry:v1
 
 /**
  * Master entry point for the NATVS Hydration Engine configuration.
@@ -23,6 +23,7 @@ RegistryEntry = RealmKind "_" OriginKind "_" CategoryKind "=" SForgePhysicalPath
 RealmKind = "PLATFORM_CORE"
           / "PLATFORM_PRODUCT"
           / "LICENSEE_CUSTOM"
+          / "FEDERATED_FLEET"
           ;
 
 /**
@@ -30,6 +31,7 @@ RealmKind = "PLATFORM_CORE"
  */
 OriginKind = "EXTERNAL"
            / "INTERNAL"
+           / "ADAPTED"
            ;
 
 /**
@@ -39,6 +41,10 @@ CategoryKind = "BLUEPRINT"
              / "TOOLCHAIN"
              / "EPHEMERAL"
              / "ACTOR"
+             / "MODEL"
+             / "ATTESTATION"
+             / "INTERFACE"
+             / "PROVISIONAL"
              ;
 
 /**
@@ -77,7 +83,7 @@ HydrationTarget = "target" "{" HydrationMode HydrationEngine SourcePath OutputNa
 /**
  * Execution modality: dynamic compiler compilation versus static mirror download.
  */
-HydrationMode = "mode" ":" ( "DYNAMIC" / "STATIC" ) ";" ;
+HydrationMode = "mode" ":" ( "DYNAMIC" / "STATIC" / "DISCOVER" ) ";" ;
 
 /**
  * The target compiler toolchain or retrieval tool driving the build.

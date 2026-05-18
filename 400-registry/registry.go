@@ -3,8 +3,8 @@ package registry
 import (
 	"path/filepath"
 	"strings"
-	"sov.fleet/sLatentLingua/02000-logic-libraries/snparser"
-	"sov.fleet/sLatentLingua/02000-logic-libraries/ir"
+	"sov.fleet/s-latentlingua/02000-logic-libraries/snparser"
+	"sov.fleet/s-latentlingua/02000-logic-libraries/ir"
 )
 
 // TransitionPath implements the declarative "UniversalPath -> HostPlatformPath" grammar rule.
