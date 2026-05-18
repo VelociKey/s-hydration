@@ -51,7 +51,18 @@ The executing agent must utilize these locked system coordinates directly:
 
 ---
 
-### Step 3: Firecracker Guest Sandboxed Bridge Integration
+### Step 3: Extract UI/UX Soul & Re-animate Flutter Surface
+*   **Target Workspace (Frontend):** `00flow/s-hydration/web`
+*   **Actionable Task:**  
+    Extract the legacy UI/UX design representations from the Hermes reference code and establish the new reactive Flutter canvas and widget structures:
+    1.  Inspect and harvest the visual layout paradigms, telemetry grids, and user state models from the legacy Hermes references.
+    2.  Materialize the active Flutter/Dart UI widget elements (conformed to Material Design V3 using 47 role-based colors from 3 seed colors).
+    3.  Create the main telemetry display canvas matching our design system specifications.
+*   **Verification:** Verify that the synthesized Flutter widget tree loads successfully with the custom theme.
+
+---
+
+### Step 4: Firecracker Guest Sandboxed Bridge Integration
 *   **Target Path (VM Context):** `/etc/init.d/S99hermes-bridge`
 *   **Actionable Task:**  
     Configure the transitional Firecracker guest microVM startup to test the Go-based guest agent:
@@ -62,7 +73,7 @@ The executing agent must utilize these locked system coordinates directly:
 
 ---
 
-### Step 4: Metabolic Synthesis Sealing
+### Step 5: Metabolic Synthesis Sealing
 *   **Target File Location:** `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom_external_artifact.webnf`
 *   **Actionable Task:**  
     Perform zero-trust compliance sealing on the newly re-animated core:
@@ -73,7 +84,7 @@ The executing agent must utilize these locked system coordinates directly:
 
 ---
 
-### Step 5: Implement Dart JS-Interop & heap-sharing visualizers (MV4)
+### Step 6: Implement Dart JS-Interop & heap-sharing visualizers (MV4)
 *   **Target Workspace (Frontend):** `00flow/s-hydration/web`
 *   **Actionable Task:**  
     Set up the frontend bindings inside Flutter's MV4 surface to read the compiled Hermes WASM heap:
