@@ -65,10 +65,10 @@ The executing agent must utilize these locked system coordinates directly:
 ### Step 4: Firecracker Guest Sandboxed Bridge Integration
 *   **Target Path (VM Context):** `/etc/init.d/S99hermes-bridge`
 *   **Actionable Task:**  
-    Configure the transitional Firecracker guest microVM startup to test the provisional Python-to-Go bridge:
-    1.  Spin up the provisional Python Hermes agent inside a locked VM.
+    Configure the transitional Firecracker guest microVM startup to test the Go-based guest agent:
+    1.  Spin up the compiled Go-based guest Hermes agent inside a locked VM (strictly avoiding Python to meet zero-overhead guidelines).
     2.  Start the local `socat` bridge mapping vsock CID 3 port 1000 directly to local guest loopback UDP port `9099`.
-    3.  Route all standard MCP calls (`mcp_serve.py`) through the SACP frame parser.
+    3.  Route all standard MCP calls through the native Go SACP frame parser.
 *   **Verification:** Ensure guest-to-host UDP loopback packets reach the host `SACPBroker` cleanly.
 
 ---
