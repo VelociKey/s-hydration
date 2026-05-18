@@ -100,3 +100,4 @@ To prevent background command and filesystem search bottlenecks, all agents must
 - **Sovereign Ephemeral Scratch:** `C:\aCogSpaceSeed\c0990-ephemeral-scratch`
 - **Cognitive Layer Silo (000ALL):** `C:\aCogSpaceSeed\000ALL`
 - **Sovereign Meta-Grammar (webnf.sn):** `C:\aCogSpaceSeed\00FLOW\sLatentLingua\30100-meta-foundation\webnf.sn` (The authoritative grammar used for all generated DSL grammars, which will have the name form `<dslname>.wag`, and all grammar-conforming programs, which will have the name form `<program_name>_<dsl_name>.webnf`).
+- **External Artifact Registry Grammar (external_artifact.wag):** Authorized DSL grammar for mapping hydrated supply-chain dependencies. The grammar resides at `00FLOW/sLatentLingua/external_artifact.wag` and governs the conforming program database named `sbom_external_artifact.webnf` under `00FLOW/sForge/90100-rehydration-seed/sbom_external_artifact.webnf`.
