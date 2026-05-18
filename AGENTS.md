@@ -40,7 +40,7 @@ Our entire software and agent development platform leads with formal grammar, st
 ### 00FLOW (SDLC Platform)
 - **sSeed:** Bootstrap workspace for platform initialization and taxonomy management. Contains `init-workspace.ps1`.
 - **sForge:** Central repository for all external and internal binaries/artifacts.
-- **sHydrator:** The NATVS Hydration Engine orchestrating Dynamic build synthesis and Static asset ingestion.
+- **sBuilder:** Specialized workspace for the build orchestration and cache management.
 - **sLatentLingua:** The "Grammar Studio" for developing DSLs using simplified eBNF/WSN.
 ### 00AAIF (Agent Architecture & Integration Framework)
 - Focuses on transforming and modernizing agentic standards.
@@ -96,7 +96,7 @@ When integrating the Jules Agent:
 ### Sovereign Toolchain Paths
 To prevent background command and filesystem search bottlenecks, all agents must utilize the following paths directly:
 - **Sovereign Go executable:** `C:\aCogSpaceSeed\00FLOW\sForge\92000-external-toolchains\go\bin\go.exe`
-- **Sovereign Bazel Orchestration:** Managed under `C:\aCogSpaceSeed\00FLOW\sHydrator\21000-build-orchestration`
+- **Sovereign Bazel Orchestration:** Managed under `C:\aCogSpaceSeed\00FLOW\sBuilder\21000-build-orchestration`
 - **Sovereign Ephemeral Scratch:** `C:\aCogSpaceSeed\c0990-ephemeral-scratch`
 - **Cognitive Layer Silo (000ALL):** `C:\aCogSpaceSeed\000ALL`
 - **Sovereign Meta-Grammar (webnf.sn):** `C:\aCogSpaceSeed\00FLOW\sLatentLingua\30100-meta-foundation\webnf.sn` (The authoritative grammar used for all generated DSL grammars, which will have the name form `<dslname>.wag`, and all grammar-conforming programs, which will have the name form `<program_name>_<dsl_name>.webnf`).
