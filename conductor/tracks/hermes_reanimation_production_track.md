@@ -51,18 +51,7 @@ The executing agent must utilize these locked system coordinates directly:
 
 ---
 
-### Step 3: Implement Dart JS-Interop & heap-sharing visualizers (MV4)
-*   **Target Workspace (Frontend):** `00flow/s-hydration/web`
-*   **Actionable Task:**  
-    Set up the frontend bindings inside Flutter's MV4 surface to read the compiled Hermes WASM heap:
-    1.  Write Dart JS-Interop bindings importing `hermes_wasm_gc.wasm`.
-    2.  Coordinate memory offsets directly from the 64-byte symmetric slot proxy outputs (`UUIDOffset`, `OrigAuthOffset`, `PayloadOffset`).
-    3.  Bind progress coordinates directly to the reactive telemetry visualizer console.
-*   **Verification:** Assert that SACP data streams project live UI updates without state copy wrappers.
-
----
-
-### Step 4: Firecracker Guest Sandboxed Bridge Integration
+### Step 3: Firecracker Guest Sandboxed Bridge Integration
 *   **Target Path (VM Context):** `/etc/init.d/S99hermes-bridge`
 *   **Actionable Task:**  
     Configure the transitional Firecracker guest microVM startup to test the Go-based guest agent:
@@ -73,7 +62,7 @@ The executing agent must utilize these locked system coordinates directly:
 
 ---
 
-### Step 5: Metabolic Synthesis Sealing
+### Step 4: Metabolic Synthesis Sealing
 *   **Target File Location:** `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom_external_artifact.webnf`
 *   **Actionable Task:**  
     Perform zero-trust compliance sealing on the newly re-animated core:
@@ -81,3 +70,14 @@ The executing agent must utilize these locked system coordinates directly:
     2.  Generate a cryptographic **Veracity Seal** using the central Conductor keys.
     3.  Append and format the seal record into the authoritative supply-chain catalog `sbom_external_artifact.webnf`.
 *   **Verification:** Assert that the re-hydrated software conforms strictly to WAG grammar validators.
+
+---
+
+### Step 5: Implement Dart JS-Interop & heap-sharing visualizers (MV4)
+*   **Target Workspace (Frontend):** `00flow/s-hydration/web`
+*   **Actionable Task:**  
+    Set up the frontend bindings inside Flutter's MV4 surface to read the compiled Hermes WASM heap:
+    1.  Write Dart JS-Interop bindings importing `hermes_wasm_gc.wasm`.
+    2.  Coordinate memory offsets directly from the 64-byte symmetric slot proxy outputs (`UUIDOffset`, `OrigAuthOffset`, `PayloadOffset`).
+    3.  Bind progress coordinates directly to the reactive telemetry visualizer console.
+*   **Verification:** Assert that SACP data streams project live UI updates without state copy wrappers.

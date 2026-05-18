@@ -27,9 +27,9 @@ The **NATVS Engine** must execute the five sequential phases detailed in the **[
 
 ## 🚀 Active Roadmap to Execute
 
-*   [ ] **Phase 1:** Implement raw `quic-go` UDP network loop inside `sHermes/hermes_core.go` mapping stream channels concurrently.
+*   [x] **Phase 1:** Implement raw `quic-go` UDP network loop inside `s-aether/hermes_core.go` mapping stream channels concurrently.
 *   *Verification:* Running local mock server compilation tests.
-*   [ ] **Phase 2:** Compile the production binary for WASM-GC under `wasip3` and verify binary payload size stays under 4MB.
-*   [ ] **Phase 3:** Write the Dart JS-Interop & heap-sharing visualizer bindings inside the Flutter frontend.
-*   [ ] **Phase 4:** Setup the sandboxed Firecracker guest vsock-to-UDP `socat` bridge in VM.
-*   [ ] **Phase 5:** Calculate the SHA-256 hash, generate the **Veracity Seal**, and seal the re-hydrated software in `sbom_external_artifact.webnf`.
+*   [x] **Phase 2:** Compile the production binary for WASM-GC under `wasip1` and verify binary payload size stays under 4MB.
+*   [ ] **Phase 3:** Setup the sandboxed Firecracker guest vsock-to-UDP bridge in VM using native Go agent.
+*   [ ] **Phase 4:** Calculate the SHA-256 hash, generate the **Veracity Seal**, and seal the re-hydrated software in `sbom_external_artifact.webnf`.
+*   [ ] **Phase 5:** Write the Dart JS-Interop & heap-sharing visualizer bindings inside the Flutter frontend (MV4).
