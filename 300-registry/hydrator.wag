@@ -42,9 +42,16 @@ CategoryKind = "BLUEPRINT"
              ;
 
 /**
- * An absolute filesystem path matching the workspace host OS structure.
+ * Universal Filepath (LLM-optimized, cross-platform invariant using forward slashes).
+ * Ex: "C:/aCogSpaceSeed/00FLOW/sForge"
  */
-SForgePhysicalPath = String ;
+UniversalPath = String ;
+
+/**
+ * An absolute filesystem path matching the workspace host OS structure.
+ * This rule acts as a declarative transition target from UniversalPath to native OS path.
+ */
+SForgePhysicalPath = UniversalPath "->" "HostPlatformPath" ;
 
 /**
  * The localized workspace harness defining Dynamic and Static hydration targets.
