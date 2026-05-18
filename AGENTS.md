@@ -75,7 +75,7 @@ The compilation and promotion of internal artifacts (like `natvs-engine.exe`) ar
 - **Backend:** Go.
 - **Build System:** Bazel (Orchestration logic housed in `21000-build-orchestration`).
 - **Networking:** QUIC (raw UDP socket using quic-go in Go WASM-GC).
-- **Logic:** Domain Specific Languages (DSLs) based on Wirth Syntax Notation.
+- **Logic:** Domain Specific Languages (DSLs) based on White's evolved Backus-Naur Form (weBNF, inspired by Wirth's styling).
 - **Strict Architecture Invariant:** Never create, install, run, or utilize npm, node, react, javascript, typescript, or related web frameworks/packages. The platform is strictly Go and Dart/Flutter; web adapters compile exclusively through Go WASM-GC.
 
 
