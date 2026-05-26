@@ -24,8 +24,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"hash"
 
 	"github.com/quic-go/quic-go/http3"
+	"github.com/zeebo/blake3"
 )
 
 const (
@@ -1123,23 +1125,31 @@ func (h *SovereignHydrator) PruneAndHash(path string, force bool, isBlake3 bool)
 
 	sort.Strings(remainingFiles)
 
-	h512 := sha512.New()
+	var hasher hash.Hash
+	prefix := "sha512:"
+	if isBlake3 {
+		hasher = blake3.New()
+		prefix = "blake3:"
+	} else {
+		hasher = sha512.New()
+	}
+
 	for _, fpath := range remainingFiles {
 		rel, err := filepath.Rel(path, fpath)
 		if err != nil {
 			continue
 		}
 		rel = filepath.ToSlash(rel)
-		h512.Write([]byte(rel))
+		hasher.Write([]byte(rel))
 
 		f, err := os.Open(fpath)
 		if err == nil {
-			_, _ = io.Copy(h512, f)
+			_, _ = io.Copy(hasher, f)
 			f.Close()
 		}
 	}
 
-	return fmt.Sprintf("sha512:%x", h512.Sum(nil)), totalSize, nil
+	return fmt.Sprintf("%s%x", prefix, hasher.Sum(nil)), totalSize, nil
 }
 
 func (h *SovereignHydrator) shouldPrune(path string, info os.FileInfo) (bool, bool) {

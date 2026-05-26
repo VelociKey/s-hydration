@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"sov.fleet/s-hydration/internal/util"
+
 )
 
 func TestDetermineExecutionPlan(t *testing.T) {
@@ -21,7 +21,7 @@ func TestDetermineExecutionPlan(t *testing.T) {
 		LastLoadedSize: 150 * 1024 * 1024, // 150MB -> Phase 2
 	}
 
-	records := []util.ArtifactRecord{
+	records := []ArtifactRecord{
 		{Name: "blake3", OriginalSize: 1024 * 1024},                  // Phase 1
 		{Name: "go-sdk-green-tea", OriginalSize: 215 * 1024 * 1024},  // Phase 1
 		{Name: "flutter-sdk-firehorse", OriginalSize: 1932735283},    // Phase 2 (1.8 GB)
@@ -135,7 +135,7 @@ trivy|0.70.0||sha512:trivyhash|212653891|212653891|2026-05-18T13:30:38-04:00
 	_, _ = tmpFile.WriteString(mockData)
 	tmpFile.Close()
 
-	records, err := util.ParseSBOM(tmpFile.Name())
+	records, err := ParseSBOM(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to parse SBOM: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestIterativeDFWalkAndMetabolicPruning(t *testing.T) {
 	os.WriteFile(licenseFile, []byte("MIT License"), 0644)
 
 	// Run metabolic pruning pass
-	err = util.IterativeDFWalk(tmpDir, func(curr string, info os.FileInfo) (bool, error) {
+	err = IterativeDFWalk(tmpDir, func(curr string, info os.FileInfo) (bool, error) {
 		shouldPrune, isDirPrune := h.shouldPrune(curr, info)
 		if shouldPrune {
 			if isDirPrune {
@@ -285,7 +285,7 @@ func TestSovereignABTestCampaign(t *testing.T) {
 		"pkg-b": 12 * time.Millisecond,
 	}
 
-	records := []util.ArtifactRecord{
+	records := []ArtifactRecord{
 		{Name: "pkg-a", OriginalSize: 500},
 		{Name: "pkg-b", OriginalSize: 1000},
 	}

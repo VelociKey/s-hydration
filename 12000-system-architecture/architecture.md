@@ -8,7 +8,7 @@ graph TD
         Manifests[Authority Manifests .webnf.manifest] -->|Load| Engine[rehydrate.go Engine]
         Engine -->|Download/Ingest| Shadow[Shadow Sandbox Dir]
         Shadow -->|Iterative DFS Metabolic Pruning| Pruner[DFS Metabolic & Deep Pruner]
-        Pruner -->|Deterministic Seal| Hash[SignPrunedProduct sha512]
+        Pruner -->|Deterministic Seal| Hash[SignPrunedProduct blake3]
         Hash -->|Promote & Register| SBOM[sbom_external_artifact.webnf]
         SBOM -->|Verify Paths| Paths[FLEET-PATHS.webnf]
     end

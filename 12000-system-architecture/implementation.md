@@ -49,17 +49,17 @@ func (r *RehydrateV2) IterativeDFWalk(root string, walkFn func(path string, info
 `SignPrunedProduct` alphabetizes the file index of the pruned artifact and generates a cryptographic seal:
 ```go
 func (r *RehydrateV2) SignPrunedProduct(path string) (string, error) {
-	// If path points to a file, just compute its SHA512 directly
+	// If path points to a file, just compute its Blake3 directly
 	info, err := os.Lstat(path)
-	if err != nil { return "sha512:missing", err }
+	if err != nil { return "blake3:missing", err }
 	
-	h := sha512.New()
+	h := blake3.New()
 	if !info.IsDir() {
 		f, err := os.Open(path)
-		if err != nil { return "sha512:error", err }
+		if err != nil { return "blake3:error", err }
 		defer f.Close()
 		io.Copy(h, f)
-		return fmt.Sprintf("sha512:%x", h.Sum(nil)), nil
+		return fmt.Sprintf("blake3:%x", h.Sum(nil)), nil
 	}
 
 	// For a directory, collect all files in sorted order of relative paths
@@ -81,7 +81,7 @@ func (r *RehydrateV2) SignPrunedProduct(path string) (string, error) {
 			f.Close()
 		}
 	}
-	return fmt.Sprintf("sha512:%x", h.Sum(nil)), nil
+	return fmt.Sprintf("blake3:%x", h.Sum(nil)), nil
 }
 ```
 

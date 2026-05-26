@@ -50,13 +50,13 @@ To ensure that promoted pruned assets are never altered in the local authority s
 1. The engine walks the directory using `IterativeDFWalk`, collecting all file paths.
 2. The list of files is sorted alphabetically by their relative paths to guarantee layout determinism across all runs.
 3. For each file:
-   - The relative path is hashed into a SHA-512 context (binding directory topography).
-   - The file byte contents are copied directly into the SHA-512 context (binding data state).
-4. The final signature is output as `sha512:<hex_hash>`.
+   - The relative path is hashed into a Blake3 context (binding directory topography).
+   - The file byte contents are copied directly into the Blake3 context (binding data state).
+4. The final signature is output as `blake3:<hex_hash>`.
 
 > [!TIP]
-> If a directory is completely empty on disk (due to being a placeholder or fully stripped), the algorithm deterministically resolves to the exact SHA-512 sum of zero bytes:
-> `sha512:cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e`
+> If a directory is completely empty on disk (due to being a placeholder or fully stripped), the algorithm deterministically resolves to the exact Blake3 sum of zero bytes:
+> `blake3:af1349b9f5f9a1a6a0404daefc620e4050b5715dc83f4a921d36ce9ce47d0d13c`
 
 ---
 
