@@ -5,7 +5,7 @@ The **sHydrator** engine acts as the primary gatekeeper for the air-gapped Veloc
 ```mermaid
 graph TD
     subgraph External Hydration (Green Tea Engine)
-        Manifests[Authority Manifests .webnf.manifest] -->|Load| Engine[rehydrate.go Engine]
+        Manifests[Authority Manifests .webnf.manifest] -->|Load| Engine[hydrator.go Engine]
         Engine -->|Download/Ingest| Shadow[Shadow Sandbox Dir]
         Shadow -->|Iterative DFS Metabolic Pruning| Pruner[DFS Metabolic & Deep Pruner]
         Pruner -->|Deterministic Seal| Hash[SignPrunedProduct blake3]

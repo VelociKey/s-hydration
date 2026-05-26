@@ -4,7 +4,7 @@ This document provides concrete source-code descriptions and command-line execut
 
 ---
 
-## 1. External Rehydration Implementation (`rehydrate.go`)
+## 1. External Rehydration Implementation (`hydrator.go`)
 
 The external rehydration engine is written in standard, dependency-free Go to guarantee compilation in a clean bootstrap environment.
 
@@ -93,13 +93,13 @@ The rehydration engine is invoked via the sovereign Go toolchain and provides ke
 
 ```powershell
 # 1. Execute full dry-run checklist (identify actionable/up-to-date targets without modifying disk)
-go run rehydrate.go -check
+go run hydrator.go -check
 
 # 2. Force rehydrate and prune all artifacts, overwriting existing directories
-go run rehydrate.go -force
+go run hydrator.go -force
 
 # 3. Hydrate and prune a single targeted package (e.g. 'trivy')
-go run rehydrate.go -only trivy
+go run hydrator.go -only trivy
 ```
 
 ---
