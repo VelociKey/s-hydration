@@ -112,33 +112,33 @@ The internal hydration layer allows Bazel to build compile pipelines without com
 
 To structure air-gapped build redirection, we classify and designate Bazel hermetic targets under distinct **Target Types**. Each target type maps to a specific, cryptographically sealed directory within the `s-forge` authority silo:
 
-| Target Type | Harness Designation (WORKSPACE / MODULE.bazel) | s-forge Target Location | Purpose & Mapping Guarantee |
+| Target Type | Harness Designation (MODULE.bazel) | s-forge Target Location | Purpose & Mapping Guarantee |
 | :--- | :--- | :--- | :--- |
 | **`toolchain_sdk`** | `register_toolchains` / `go_download_sdk` | `00flow/s-forge/92000-external-toolchains/go` | Hermetic Go SDK runtime environment for target compilation. |
-| **`bazel_rules`** | `local_repository(name = "io_bazel_rules_go")` | `00flow/s-forge/92000-external-toolchains/bazel-rules/rules_go` | Offline package management rulesets for local compiler orchestration. |
-| **`bazel_rules`** | `local_repository(name = "rules_flutter")` | `00flow/s-forge/92000-external-toolchains/bazel-rules/rules_flutter` | Compilation rules and libraries for cross-compiling local surfaces. |
+| **`bazel_rules`** | `local_path_override(module_name = "rules_go")` | `00flow/s-forge/92000-external-toolchains/bazel-rules/rules_go` | Offline package management rulesets for local compiler orchestration. |
+| **`bazel_rules`** | `local_path_override(module_name = "rules_flutter")` | `00flow/s-forge/92000-external-toolchains/bazel-rules/rules_flutter` | Compilation rules and libraries for cross-compiling local surfaces. |
 | **`external_binary`**| `binary_path` / `genrule` tool hooks | `00flow/s-forge/91000-external-binaries/bazel/buildifier.exe` | Formatters, linters, and helper tools run as localized subprocesses. |
 | **`wasm_platform`** | `register_execution_platforms` | `00flow/s-forge/92000-external-toolchains/wasm/wasm-tools` | Hermetic platforms for WASM-GC runtime compilation. |
 
 ### 3.2 Decoupled Module Mappings & Harness Examples
 
-Inside the workspace's root files (`MODULE.bazel` or `WORKSPACE`), external remote references are overridden with relative local hooks mapping back to these designated directories:
+Inside the workspace's root file (`MODULE.bazel`), external remote references are overridden with relative local hooks mapping back to these designated directories:
 
 ```bazel
 # 1. Ruleset Designation Redirection
-local_repository(
-    name = "io_bazel_rules_go",
+local_path_override(
+    module_name = "rules_go",
     path = "00flow/s-forge/92000-external-toolchains/bazel-rules/rules_go",
 )
 
-local_repository(
-    name = "rules_flutter",
+local_path_override(
+    module_name = "rules_flutter",
     path = "00flow/s-forge/92000-external-toolchains/bazel-rules/rules_flutter",
 )
 
 # 2. Local SDK Designation Redirection
-local_repository(
-    name = "go_sdk",
+local_path_override(
+    module_name = "go_sdk",
     path = "00flow/s-forge/92000-external-toolchains/go",
 )
 ```

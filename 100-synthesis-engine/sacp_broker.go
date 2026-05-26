@@ -7,18 +7,25 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // SACPBroker coordinates SACP raw QUIC/UDP connections and Monotonic Authority validation.
 type SACPBroker struct {
-	mu            sync.RWMutex
-	udpAddr       string
-	wsAddr        string
-	activeTokens  map[string]AuthorityLevel
-	activeSession *QAPCHeader
-	listener      *net.UDPConn
-	shutdownCtx   context.Context
-	shutdownFn    context.CancelFunc
+	mu               sync.RWMutex
+	udpAddr          string
+	wsAddr           string
+	activeTokens     map[string]AuthorityLevel
+	activeSession    *QAPCHeader
+	listener         *net.UDPConn
+	shutdownCtx      context.Context
+	shutdownFn       context.CancelFunc
+	idleTimeout      time.Duration
+	watchdogTimer    *time.Timer
+	watchdogMu       sync.Mutex
+	activeStreams    int32
+	shutdownCallback func()
 }
 
 func NewSACPBroker(udpAddr string, wsAddr string) *SACPBroker {
@@ -29,6 +36,7 @@ func NewSACPBroker(udpAddr string, wsAddr string) *SACPBroker {
 		activeTokens: make(map[string]AuthorityLevel),
 		shutdownCtx:  ctx,
 		shutdownFn:   cancel,
+		idleTimeout:  30 * time.Minute, // 30 minutes default
 	}
 }
 
@@ -82,13 +90,13 @@ func (b *SACPBroker) listenLoop() {
 				continue
 			}
 
-			if n < PayloadOffset {
+			// Parse incoming frame using the Symmetric Callee Proxy
+			callee := NewSACPCalleeProxy(buf[:n])
+			if callee.GetOriginalUUID() == "" {
 				log.Printf("[SACPBroker] Ignoring malformed frame of size %d", n)
 				continue
 			}
 
-			// Parse incoming frame using the Symmetric Callee Proxy
-			callee := NewSACPCalleeProxy(buf[:n])
 			header := &QAPCHeader{
 				OriginalUUID:      callee.GetOriginalUUID(),
 				OriginalAuthority: callee.GetOriginalAuthority(),
@@ -105,6 +113,8 @@ func (b *SACPBroker) listenLoop() {
 			b.mu.Lock()
 			b.activeSession = header
 			b.mu.Unlock()
+
+			b.ResetIdleWatchdog() // Reset on SACP frame activity
 
 			log.Printf("[SACPBroker] [PASS] Verified SACP Frame for %s with authority %s", header.OriginalUUID, header.CurrentAuthority)
 		}
@@ -129,12 +139,77 @@ func (b *SACPBroker) ProcessMetabolicSwap(token string, clientUUID string) error
 	b.activeSession = header
 	b.mu.Unlock()
 
+	b.ResetIdleWatchdog() // Reset on metabolic hot-swap task goal arrival
+
 	log.Printf("[SACPBroker] Metabolic Hot-Swap success! Session %q elevated to QUIC SACP with level %s", clientUUID, auth)
 	return nil
 }
 
+func (b *SACPBroker) SetIdleTimeout(d time.Duration) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.idleTimeout = d
+}
+
+func (b *SACPBroker) StartIdleWatchdog(onShutdown func()) {
+	b.watchdogMu.Lock()
+	defer b.watchdogMu.Unlock()
+
+	b.mu.Lock()
+	b.shutdownCallback = onShutdown
+	timeout := b.idleTimeout
+	b.mu.Unlock()
+
+	if b.watchdogTimer != nil {
+		b.watchdogTimer.Stop()
+	}
+
+	b.watchdogTimer = time.AfterFunc(timeout, func() {
+		b.mu.Lock()
+		cb := b.shutdownCallback
+		b.mu.Unlock()
+		if cb != nil {
+			cb()
+		}
+	})
+}
+
+func (b *SACPBroker) ResetIdleWatchdog() {
+	b.watchdogMu.Lock()
+	defer b.watchdogMu.Unlock()
+
+	b.mu.Lock()
+	timeout := b.idleTimeout
+	b.mu.Unlock()
+
+	if b.watchdogTimer != nil {
+		b.watchdogTimer.Stop()
+		b.watchdogTimer.Reset(timeout)
+	}
+}
+
+func (b *SACPBroker) OpenInvocationStream() int32 {
+	b.ResetIdleWatchdog()
+	return atomic.AddInt32(&b.activeStreams, 1)
+}
+
+func (b *SACPBroker) CloseInvocationStream() int32 {
+	b.ResetIdleWatchdog()
+	return atomic.AddInt32(&b.activeStreams, -1)
+}
+
+func (b *SACPBroker) GetActiveStreamsCount() int32 {
+	return atomic.LoadInt32(&b.activeStreams)
+}
+
 func (b *SACPBroker) Close() {
 	b.shutdownFn()
+	b.watchdogMu.Lock()
+	if b.watchdogTimer != nil {
+		b.watchdogTimer.Stop()
+	}
+	b.watchdogMu.Unlock()
+
 	if b.listener != nil {
 		b.listener.Close()
 	}

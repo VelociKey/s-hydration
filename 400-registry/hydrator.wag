@@ -41,6 +41,7 @@ CategoryKind = "BLUEPRINT"
              / "TOOLCHAIN"
              / "EPHEMERAL"
              / "ACTOR"
+             / "LIBRARY"
              / "MODEL"
              / "ATTESTATION"
              / "INTERFACE"
@@ -49,7 +50,7 @@ CategoryKind = "BLUEPRINT"
 
 /**
  * Universal Filepath (LLM-optimized, cross-platform invariant using forward slashes).
- * Ex: "C:/aCogSpaceSeed/00FLOW/sForge"
+ * Ex: "C:/aCogSpaceSeed/00flow/sForge"
  */
 UniversalPath = String ;
 
@@ -63,7 +64,47 @@ SForgePhysicalPath = UniversalPath "->" "HostPlatformPath" ;
  * The localized workspace harness defining Dynamic and Static hydration targets.
  * Used strictly inside local workspace_hydrator.webnf files.
  */
-HarnessBlock = "workspace_harness" "{" WorkspaceName [ HydrationTargets ] PromotionCoords "}" ;
+HarnessBlock = "workspace_harness" "{" WorkspaceName [ WorkspaceFacets ] [ HydrationTargets ] PromotionCoords "}" ;
+
+/**
+ * Workspace facets declaring policy, mutability, and capability boundaries.
+ * Controlled strictly by the grammar as the complete source of truth.
+ */
+WorkspaceFacets = "facets" "{" { FacetEntry } "}" ;
+
+FacetEntry = "read_only" ":" Boolean ";"
+           / "build_enabled" ":" Boolean ";"
+           / "functional_classification" ":" ClassificationKind ";"
+           / "retention_policy" ":" RetentionKind ";"
+           / "kind" ":" WorkspaceKind ";"
+           ;
+
+Boolean = "true" / "false" ;
+
+WorkspaceKind = "COMMAND"
+             / "COMMAND_SYSTEM"
+             / "TOOLCHAIN"
+             / "RUNTIME"
+             / "LOGIC_LIBRARY"
+             / "MODEL"
+             ;
+
+ClassificationKind = "FABRICATION_SYNTHESIS"      # Category A: Creation (fabrication)
+                   / "COGNITION_INFERENCE"        # Category A: Creation (fabrication)
+                   / "ORCHESTRATION_WORKFLOW"     # Category A: Creation (fabrication)
+                   / "SIMULATION_VIRTUALIZATION"  # Category A: Creation (fabrication)
+                   / "INGESTION_PERSISTENCE"      # Category B: Internal Persistence
+                   / "INTERNAL_PROTECTION"        # Category B: Internal Persistence (Defense)
+                   / "INTERNAL_GOVERNANCE"        # Category B: Internal Persistence (Governance)
+                   / "TRANSPORT_SYNCHRONIZATION"  # Category C: External Persistence
+                   / "EXTERNAL_PROTECTION"        # Category C: External Persistence (Defense)
+                   / "EXTERNAL_GOVERNANCE"        # Category C: External Persistence (Governance)
+                   ;
+
+RetentionKind = "EPHEMERAL"
+              / "PERSISTENT"
+              / "ARCHIVAL"
+              ;
 
 /**
  * The unique identifier for the containing workspace.

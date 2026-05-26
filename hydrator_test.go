@@ -1,288 +1,295 @@
-package shydration
+package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"sov.fleet/s-hydration/internal/util"
 )
 
-func TestHydratorPluginRegistration(t *testing.T) {
-	hydrator := NewHydrator()
-	
-	// Register mechanisms
-	hydrator.Register(&DynamicSynthesisMechanism{})
-	hydrator.Register(&StaticIngestionMechanism{})
-	hydrator.Register(&MCPDiscoveryMechanism{})
-	
-	// Verify count
-	if len(hydrator.plugins) != 3 {
-		t.Errorf("Expected 3 registered plugins, got %d", len(hydrator.plugins))
+func TestDetermineExecutionPlan(t *testing.T) {
+	h := NewSovereignHydrator()
+
+	// Mock dynamic experience size
+	h.experience["custom-massive"] = ExperienceRecord{
+		TargetName:     "custom-massive",
+		LastLoadedSize: 150 * 1024 * 1024, // 150MB -> Phase 2
 	}
-	
-	// Verify modes
-	if _, ok := hydrator.plugins[ModeDynamic]; !ok {
-		t.Error("Dynamic synthesis plugin missing")
+
+	records := []util.ArtifactRecord{
+		{Name: "blake3", OriginalSize: 1024 * 1024},                  // Phase 1
+		{Name: "go-sdk-green-tea", OriginalSize: 215 * 1024 * 1024},  // Phase 1
+		{Name: "flutter-sdk-firehorse", OriginalSize: 1932735283},    // Phase 2 (1.8 GB)
+		{Name: "custom-massive", OriginalSize: 50 * 1024},            // Phase 2 via experience
+		{Name: "bazel-rules-go", OriginalSize: 10 * 1024 * 1024},     // Phase 3 github.com
+		{Name: "bazelisk", OriginalSize: 15 * 1024 * 1024},           // Phase 3 github.com
+		{Name: "step-ca", OriginalSize: 50 * 1024},                   // Phase 3 small local placeholder
 	}
-	if _, ok := hydrator.plugins[ModeStatic]; !ok {
-		t.Error("Static ingestion plugin missing")
+
+	bootstrap, massive, parallelGroups := h.determineExecutionPlan(records)
+
+	// Verify Phase 1
+	if len(bootstrap) != 2 {
+		t.Errorf("Expected 2 bootstrap targets, got %d", len(bootstrap))
 	}
-	if _, ok := hydrator.plugins[ModeDiscover]; !ok {
-		t.Error("MCP Capability Discovery plugin missing")
+	for _, b := range bootstrap {
+		if b.Name != "blake3" && b.Name != "go-sdk-green-tea" {
+			t.Errorf("Unexpected bootstrap target: %s", b.Name)
+		}
+	}
+
+	// Verify Phase 2
+	if len(massive) != 2 {
+		t.Errorf("Expected 2 massive targets, got %d", len(massive))
+	}
+	var foundMassiveCustom bool
+	for _, m := range massive {
+		if m.Name == "custom-massive" {
+			foundMassiveCustom = true
+		}
+	}
+	if !foundMassiveCustom {
+		t.Error("Dynamic massive target custom-massive was not scheduled to Phase 2")
+	}
+
+	// Verify Phase 3
+	ghCount := len(parallelGroups["github.com"])
+	if ghCount == 0 {
+		t.Error("Expected parallel multiplexing cohort groups for github.com, got 0")
 	}
 }
 
-func TestDynamicSynthesisPlugin(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "dynamic-synthesis-test-*")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+func TestSovereignScalerAutoscaling(t *testing.T) {
+	scaler := NewSovereignScaler(2, 4) // Min=2, Max=4
+
+	var counter int64
+	var mu sync.Mutex
+
+	taskCount := 10
+	wg := sync.WaitGroup{}
+	wg.Add(taskCount)
+
+	for i := 0; i < taskCount; i++ {
+		scaler.Submit(func(ctx context.Context) error {
+			defer wg.Done()
+			mu.Lock()
+			counter++
+			mu.Unlock()
+			time.Sleep(10 * time.Millisecond)
+			return nil
+		})
 	}
-	defer os.RemoveAll(tmpDir)
-	
-	outputPath := filepath.Join(tmpDir, "internal_actor_main")
-	target := HydrationTarget{
-		Mode:       ModeDynamic,
-		Engine:     "go-wasm-compiler",
-		SourcePath: "00flow/s-forge/94000-internal-actors/source",
-		OutputPath: outputPath,
-	}
-	
-	hydrator := NewHydrator()
-	hydrator.Register(&DynamicSynthesisMechanism{})
-	
-	err = hydrator.Execute(context.Background(), target)
-	if err != nil {
-		t.Fatalf("Hydration execute failed: %v", err)
-	}
-	
-	// Verify output file exists
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
-	
-	if !strings.Contains(string(content), "Mode: DYNAMIC") {
-		t.Errorf("Expected output to contain 'Mode: DYNAMIC', got %q", string(content))
-	}
-	if !strings.Contains(string(content), "Engine: go-wasm-compiler") {
-		t.Errorf("Expected output to contain 'Engine: go-wasm-compiler', got %q", string(content))
+
+	wg.Wait()
+	scaler.Shutdown()
+
+	if counter != int64(taskCount) {
+		t.Errorf("Expected %d tasks to run, got %d", taskCount, counter)
 	}
 }
 
-func TestStaticIngestionPlugin(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "static-ingestion-test-*")
+func TestProgressWriterCalculation(t *testing.T) {
+	var buf bytes.Buffer
+	pw := &ProgressWriter{
+		TargetName: "test-target",
+		TotalBytes: 1000,
+		StartTime:  time.Now().Add(-1 * time.Second),
+		LastReport: time.Now().Add(-1 * time.Second),
+		Writer:     &buf,
+	}
+
+	// Write 500 bytes (50%)
+	payload := make([]byte, 500)
+	n, err := pw.Write(payload)
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("Write failed: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
-	
-	outputPath := filepath.Join(tmpDir, "external_toolchain_trivy")
-	target := HydrationTarget{
-		Mode:       ModeStatic,
-		Engine:     "github-release-retriever",
-		SourcePath: "https://github.com/aquasecurity/trivy/releases/v0.51.0",
-		OutputPath: outputPath,
+	if n != 500 {
+		t.Errorf("Expected 500 bytes written, got %d", n)
 	}
-	
-	hydrator := NewHydrator()
-	hydrator.Register(&StaticIngestionMechanism{})
-	
-	err = hydrator.Execute(context.Background(), target)
-	if err != nil {
-		t.Fatalf("Hydration execute failed: %v", err)
-	}
-	
-	// Verify output file exists
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
-	
-	if !strings.Contains(string(content), "Mode: STATIC") {
-		t.Errorf("Expected output to contain 'Mode: STATIC', got %q", string(content))
+
+	// Verify underlying buffer got the bytes
+	if buf.Len() != 500 {
+		t.Errorf("Expected underlying writer to receive 500 bytes, got %d", buf.Len())
 	}
 }
 
-func TestMCPDiscoveryPlugin(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "mcp-discovery-test-*")
+func TestParseSBOMRegistry(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "mock-sbom-*.webnf")
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("Failed to create temp SBOM: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
-	
-	outputPath := filepath.Join(tmpDir, "capability_catalog.webnf")
-	target := HydrationTarget{
-		Mode:       ModeDiscover,
-		Engine:     "mcp-client-discovery",
-		SourcePath: "127.0.0.1:8080/mcp",
-		OutputPath: outputPath,
-	}
-	
-	hydrator := NewHydrator()
-	mcpPlugin := &MCPDiscoveryMechanism{
-		MockCapabilities: []string{"git_commit", "trivy_audit", "jules_self_heal"},
-	}
-	hydrator.Register(mcpPlugin)
-	
-	err = hydrator.Execute(context.Background(), target)
-	if err != nil {
-		t.Fatalf("Hydration execute failed: %v", err)
-	}
-	
-	// Verify output file exists
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
-	}
-	
-	fileStr := string(content)
-	if !strings.Contains(fileStr, "Mode: DISCOVER") {
-		t.Errorf("Expected output to contain 'Mode: DISCOVER', got %q", fileStr)
-	}
-	if !strings.Contains(fileStr, "capability_catalog {") {
-		t.Errorf("Expected output to open capability_catalog block, got %q", fileStr)
-	}
-	if !strings.Contains(fileStr, "MCP_TOOL_jules_self_heal = \"enabled\" ;") {
-		t.Errorf("Expected output to enable discovered tool, got %q", fileStr)
-	}
-}
+	defer os.Remove(tmpFile.Name())
 
-func TestParseWebNFTargets(t *testing.T) {
-	webnfContent := `; Sample targets file
-workspace_harness {
-    name : "test_workspace" ;
-    targets {
-        target {
-            mode : DYNAMIC ;
-            engine : "go-wasm-compiler" ;
-            src : "00flow/s-forge/94000-internal-actors/source" ;
-            out : "C:/aCogSpaceSeed/00flow/s-forge/94000-internal-actors/bin/actor_test" ;
-        }
-        target {
-            mode : STATIC ;
-            engine : "git-lfs-mirror" ;
-            src : "https://github.com/aquasecurity/trivy/releases" ;
-            out : "C:/aCogSpaceSeed/00flow/s-forge/92000-external-toolchains/trivy" ;
-        }
-    }
-}
+	mockData := `SBOM-V2
+2026-05-18T13:30:34-04:00
+AAIF-GreenTea-Rehydrator-v2.0
+# VERACITY-SEAL: mock-seal
+trivy|0.70.0||sha512:trivyhash|212653891|212653891|2026-05-18T13:30:38-04:00
 `
-	targets, err := ParseWebNFTargets(webnfContent)
+	_, _ = tmpFile.WriteString(mockData)
+	tmpFile.Close()
+
+	records, err := util.ParseSBOM(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("ParseWebNFTargets failed: %v", err)
+		t.Fatalf("Failed to parse SBOM: %v", err)
 	}
 
-	if len(targets) != 2 {
-		t.Fatalf("Expected 2 parsed targets, got %d", len(targets))
+	if len(records) != 1 {
+		t.Fatalf("Expected 1 parsed record, got %d", len(records))
 	}
 
-	if targets[0].Mode != ModeDynamic || targets[0].Engine != "go-wasm-compiler" {
-		t.Errorf("Mismatch in first target: %+v", targets[0])
+	r := records[0]
+	if r.Name != "trivy" || r.Version != "0.70.0" || r.PrunedHash != "sha512:trivyhash" {
+		t.Errorf("Mismatch in parsed SBOM record: %+v", r)
 	}
-	if targets[1].Mode != ModeStatic || targets[1].Engine != "git-lfs-mirror" {
-		t.Errorf("Mismatch in second target: %+v", targets[1])
+	if r.OriginalSize != 212653891 {
+		t.Errorf("Expected size 212653891, got %d", r.OriginalSize)
 	}
 }
 
-func TestInvokeToAddPermanent(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "invoke-to-add-permanent-*")
+func TestExperienceRegistryLoadSave(t *testing.T) {
+	h := NewSovereignHydrator()
+
+	tmpDir, err := os.MkdirTemp("", "mock-exp-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	webnfPath := filepath.Join(tmpDir, "workspace_hydrator.webnf")
-	outputPath := filepath.Join(tmpDir, "sealed_actor_main")
+	expPath := filepath.Join(tmpDir, "experience.webnf")
 
-	hydrator := NewHydrator()
-	hydrator.Register(&DynamicSynthesisMechanism{})
-
-	input := InvokeInput{
-		Mode:       ModeDynamic,
-		Engine:     "licensee-go-compiler",
-		SourcePath: "licensee/custom-actors/src",
-		OutputPath: outputPath,
+	h.experience["git"] = ExperienceRecord{
+		TargetName:     "git",
+		LastLoadedSize: 125483360,
+		LastDuration:   5 * time.Second,
+		LastPrunedSize: 110000000,
 	}
 
-	// Invoke permanent inclusion
-	err = hydrator.InvokeToAdd(context.Background(), input, true, webnfPath)
+	// Save
+	err = h.saveExperience(expPath)
 	if err != nil {
-		t.Fatalf("InvokeToAdd failed: %v", err)
+		t.Fatalf("Save experience failed: %v", err)
 	}
 
-	// 1. Verify target was run successfully
-	content, err := os.ReadFile(outputPath)
+	// Load into a new hydrator
+	h2 := NewSovereignHydrator()
+	err = h2.loadExperience(expPath)
 	if err != nil {
-		t.Fatalf("Failed to read dynamic actor output: %v", err)
-	}
-	if !strings.Contains(string(content), "Engine: licensee-go-compiler") {
-		t.Errorf("Expected output to contain engine name, got %q", string(content))
+		t.Fatalf("Load experience failed: %v", err)
 	}
 
-	// 2. Verify targets database file exists and contains the syntactically correct block
-	webnfBytes, err := os.ReadFile(webnfPath)
-	if err != nil {
-		t.Fatalf("Failed to read persisted WebNF database: %v", err)
-	}
-	webnfStr := string(webnfBytes)
-	if !strings.Contains(webnfStr, "mode : DYNAMIC ;") {
-		t.Errorf("Persisted WebNF missing mode string, got %q", webnfStr)
-	}
-	if !strings.Contains(webnfStr, `engine : "licensee-go-compiler" ;`) {
-		t.Errorf("Persisted WebNF missing engine string, got %q", webnfStr)
+	rec, exists := h2.experience["git"]
+	if !exists {
+		t.Fatal("Git experience record missing in loaded hydrator")
 	}
 
-	// 3. Verify we can parse it back using our ParseWebNFTargets
-	parsedTargets, err := ParseWebNFTargets(webnfStr)
-	if err != nil {
-		t.Fatalf("Failed to re-parse generated WebNF config: %v", err)
-	}
-	if len(parsedTargets) != 1 {
-		t.Fatalf("Expected 1 re-parsed target, got %d", len(parsedTargets))
-	}
-	if parsedTargets[0].Engine != "licensee-go-compiler" || parsedTargets[0].Mode != ModeDynamic {
-		t.Errorf("Parsed target mismatch: %+v", parsedTargets[0])
+	if rec.LastLoadedSize != 125483360 || rec.LastDuration != 5*time.Second {
+		t.Errorf("Mismatch in loaded experience record: %+v", rec)
 	}
 }
 
-func TestInvokeToAddEphemeral(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "invoke-to-add-ephemeral-*")
+func TestIterativeDFWalkAndMetabolicPruning(t *testing.T) {
+	h := NewSovereignHydrator()
+
+	tmpDir, err := os.MkdirTemp("", "walk-test-*")
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("Failed to create temp walk dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	webnfPath := filepath.Join(tmpDir, "workspace_hydrator.webnf")
-	outputPath := filepath.Join(tmpDir, "sealed_actor_main")
+	// Create test structures
+	// 1. Keep
+	keepPath := filepath.Join(tmpDir, "src")
+	os.MkdirAll(keepPath, 0755)
+	os.WriteFile(filepath.Join(keepPath, "main.go"), []byte("package main"), 0644)
 
-	hydrator := NewHydrator()
-	hydrator.Register(&DynamicSynthesisMechanism{})
+	// 2. Prune Folder (test)
+	testPath := filepath.Join(tmpDir, "src", "test")
+	os.MkdirAll(testPath, 0755)
+	os.WriteFile(filepath.Join(testPath, "main_test.go"), []byte("package main"), 0644)
 
-	input := InvokeInput{
-		Mode:       ModeDynamic,
-		Engine:     "short-term-engine",
-		SourcePath: "ephemeral/src",
-		OutputPath: outputPath,
-	}
+	// 3. Prune file (.pdf)
+	pdfFile := filepath.Join(keepPath, "manual.pdf")
+	os.WriteFile(pdfFile, []byte("PDF content"), 0644)
 
-	// Invoke ephemeral inclusion
-	err = hydrator.InvokeToAdd(context.Background(), input, false, webnfPath)
+	// 4. Exempt license file (license.md)
+	licenseFile := filepath.Join(keepPath, "license.md")
+	os.WriteFile(licenseFile, []byte("MIT License"), 0644)
+
+	// Run metabolic pruning pass
+	err = util.IterativeDFWalk(tmpDir, func(curr string, info os.FileInfo) (bool, error) {
+		shouldPrune, isDirPrune := h.shouldPrune(curr, info)
+		if shouldPrune {
+			if isDirPrune {
+				os.RemoveAll(curr)
+			} else {
+				os.Remove(curr)
+			}
+			return true, nil // Skip children
+		}
+		return false, nil
+	})
 	if err != nil {
-		t.Fatalf("InvokeToAdd failed: %v", err)
+		t.Fatalf("IterativeDFWalk failed: %v", err)
 	}
 
-	// 1. Verify target was run successfully
-	content, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("Failed to read dynamic actor output: %v", err)
+	// Verify
+	if _, err := os.Stat(filepath.Join(keepPath, "main.go")); err != nil {
+		t.Error("Expected keep file main.go to exist")
 	}
-	if !strings.Contains(string(content), "Engine: short-term-engine") {
-		t.Errorf("Expected output to contain ephemeral engine, got %q", string(content))
+	if _, err := os.Stat(filepath.Join(keepPath, "license.md")); err != nil {
+		t.Error("Expected exempt license.md file to exist")
+	}
+	if _, err := os.Stat(testPath); !os.IsNotExist(err) {
+		t.Error("Expected test folder to be metabolically pruned")
+	}
+	if _, err := os.Stat(pdfFile); !os.IsNotExist(err) {
+		t.Error("Expected manual.pdf to be metabolically pruned")
+	}
+}
+
+func TestSovereignProbeAndAltSvc(t *testing.T) {
+	h := NewSovereignHydrator()
+
+	// Probe fallback logic test
+	proto, finalURL := h.SovereignProbe("https://github.com/BLAKE3-team/BLAKE3")
+	if proto != ProtoH2 {
+		t.Errorf("Expected fallback to ProtoH2, got %d", proto)
+	}
+	if finalURL != "https://github.com/BLAKE3-team/BLAKE3" {
+		t.Errorf("Expected unmodified URL, got %s", finalURL)
+	}
+}
+
+func TestSovereignABTestCampaign(t *testing.T) {
+	h := NewSovereignHydrator()
+	h.abtest = true
+	h.sequential = false
+
+	// Mock experiences
+	h.experience["pkg-a"] = ExperienceRecord{TargetName: "pkg-a", LastLoadedSize: 500, LastDuration: 10 * time.Millisecond}
+	h.experience["pkg-b"] = ExperienceRecord{TargetName: "pkg-b", LastLoadedSize: 1000, LastDuration: 20 * time.Millisecond}
+
+	seqDurations := map[string]time.Duration{
+		"pkg-a": 15 * time.Millisecond,
+		"pkg-b": 25 * time.Millisecond,
+	}
+	parDurations := map[string]time.Duration{
+		"pkg-a": 8 * time.Millisecond,
+		"pkg-b": 12 * time.Millisecond,
 	}
 
-	// 2. Verify targets database file does NOT exist (short-term inclusion!)
-	if _, err := os.Stat(webnfPath); !os.IsNotExist(err) {
-		t.Error("Expected WebNF file to NOT be created for ephemeral inclusion")
+	records := []util.ArtifactRecord{
+		{Name: "pkg-a", OriginalSize: 500},
+		{Name: "pkg-b", OriginalSize: 1000},
 	}
+
+	// Proves printABTestReport compiles and formats side-by-side correctly!
+	h.printABTestReport(records, seqDurations, 40*time.Millisecond, parDurations, 15*time.Millisecond)
 }

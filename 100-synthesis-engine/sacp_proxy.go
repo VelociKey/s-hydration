@@ -1,8 +1,9 @@
 package synthesis
 
 import (
-	"bytes"
 	"fmt"
+
+	"sov.fleet/s-logiclibrary/00200-logic-libraries/bicodec"
 )
 
 // AuthorityLevel coordinates monotonic permissions for agent capabilities.
@@ -27,6 +28,36 @@ func (a AuthorityLevel) String() string {
 		return "AuthSovereign"
 	default:
 		return "Unknown"
+	}
+}
+
+func mapAuthLevelToString(auth AuthorityLevel) string {
+	switch auth {
+	case AuthGuest:
+		return bicodec.AuthGuest
+	case AuthWorker:
+		return bicodec.AuthWorker
+	case AuthManager:
+		return bicodec.AuthManager
+	case AuthSovereign:
+		return bicodec.AuthSovereign
+	default:
+		return bicodec.AuthGuest
+	}
+}
+
+func mapStringToAuthLevel(s string) AuthorityLevel {
+	switch s {
+	case bicodec.AuthGuest:
+		return AuthGuest
+	case bicodec.AuthWorker:
+		return AuthWorker
+	case bicodec.AuthManager:
+		return AuthManager
+	case bicodec.AuthSovereign:
+		return AuthSovereign
+	default:
+		return AuthGuest
 	}
 }
 
@@ -57,7 +88,7 @@ func (h *QAPCHeader) Delegate(reducedAuth AuthorityLevel) (*QAPCHeader, error) {
 	}, nil
 }
 
-// Symmetric Memory Topography Constants
+// Symmetric Memory Topography Constants (kept for compatibility)
 const (
 	SlotSize       = 64
 	UUIDOffset     = 0
@@ -66,80 +97,90 @@ const (
 	PayloadOffset  = SlotSize * 3
 )
 
-// SACPCallerProxy is the zero-copy caller serialization helper.
+// SACPProxyBase embeds the shared header structure and provides common getters.
+type SACPProxyBase struct {
+	header bicodec.SACPHeader
+}
+
+func (p *SACPProxyBase) GetOriginalUUID() string {
+	return p.header.UUID
+}
+
+func (p *SACPProxyBase) GetOriginalAuthority() AuthorityLevel {
+	return mapStringToAuthLevel(p.header.OriginalAuthority)
+}
+
+func (p *SACPProxyBase) GetCurrentAuthority() AuthorityLevel {
+	return mapStringToAuthLevel(p.header.CurrentAuthority)
+}
+
+// SACPCallerProxy is the caller serialization helper.
 type SACPCallerProxy struct {
-	buffer []byte
+	SACPProxyBase
+	payload string
 }
 
 func NewSACPCallerProxy(size int) *SACPCallerProxy {
-	if size < PayloadOffset+SlotSize {
-		size = PayloadOffset + SlotSize
-	}
-	return &SACPCallerProxy{buffer: make([]byte, size)}
+	return &SACPCallerProxy{}
 }
 
 func (p *SACPCallerProxy) Buffer() []byte {
-	return p.buffer
+	c := &bicodec.SACPCapability{
+		Domain: "s-hydration",
+		Action: "call",
+		Parameters: map[string]string{
+			"payload": p.payload,
+		},
+	}
+	buf, err := bicodec.EncodeSACPMessage(&p.header, c)
+	if err != nil {
+		panic(err)
+	}
+	return buf
 }
 
 func (p *SACPCallerProxy) SetOriginalUUID(uuid string) {
-	b := []byte(uuid)
-	copy(p.buffer[UUIDOffset:UUIDOffset+SlotSize], bytes.Repeat([]byte{0}, SlotSize))
-	copy(p.buffer[UUIDOffset:UUIDOffset+SlotSize], b)
-}
-
-func (p *SACPCallerProxy) GetOriginalUUID() string {
-	return string(bytes.Trim(p.buffer[UUIDOffset:UUIDOffset+SlotSize], "\x00"))
+	p.header.UUID = uuid
 }
 
 func (p *SACPCallerProxy) SetOriginalAuthority(auth AuthorityLevel) {
-	p.buffer[OrigAuthOffset] = byte(auth)
-}
-
-func (p *SACPCallerProxy) GetOriginalAuthority() AuthorityLevel {
-	return AuthorityLevel(p.buffer[OrigAuthOffset])
+	p.header.OriginalAuthority = mapAuthLevelToString(auth)
 }
 
 func (p *SACPCallerProxy) SetCurrentAuthority(auth AuthorityLevel) {
-	p.buffer[CurrAuthOffset] = byte(auth)
-}
-
-func (p *SACPCallerProxy) GetCurrentAuthority() AuthorityLevel {
-	return AuthorityLevel(p.buffer[CurrAuthOffset])
+	p.header.CurrentAuthority = mapAuthLevelToString(auth)
 }
 
 func (p *SACPCallerProxy) SetPayload(payload string) {
-	b := []byte(payload)
-	limit := len(p.buffer) - PayloadOffset
-	copy(p.buffer[PayloadOffset:], bytes.Repeat([]byte{0}, limit))
-	copy(p.buffer[PayloadOffset:], b)
+	p.payload = payload
 }
 
 func (p *SACPCallerProxy) GetPayload() string {
-	return string(bytes.Trim(p.buffer[PayloadOffset:], "\x00"))
+	return p.payload
 }
 
-// SACPCalleeProxy is the zero-copy callee deserialization helper.
+// SACPCalleeProxy is the callee deserialization helper.
 type SACPCalleeProxy struct {
-	buffer []byte
+	SACPProxyBase
+	cap    bicodec.SACPCapability
 }
 
 func NewSACPCalleeProxy(buf []byte) *SACPCalleeProxy {
-	return &SACPCalleeProxy{buffer: buf}
-}
-
-func (p *SACPCalleeProxy) GetOriginalUUID() string {
-	return string(bytes.Trim(p.buffer[UUIDOffset:UUIDOffset+SlotSize], "\x00"))
-}
-
-func (p *SACPCalleeProxy) GetOriginalAuthority() AuthorityLevel {
-	return AuthorityLevel(p.buffer[OrigAuthOffset])
-}
-
-func (p *SACPCalleeProxy) GetCurrentAuthority() AuthorityLevel {
-	return AuthorityLevel(p.buffer[CurrAuthOffset])
+	hasHeader, h, hasCap, c, err := bicodec.DecodeSACPMessage(buf)
+	if err != nil {
+		return &SACPCalleeProxy{}
+	}
+	_ = hasHeader
+	_ = hasCap
+	return &SACPCalleeProxy{
+		SACPProxyBase: SACPProxyBase{header: h},
+		cap:           c,
+	}
 }
 
 func (p *SACPCalleeProxy) GetPayload() string {
-	return string(bytes.Trim(p.buffer[PayloadOffset:], "\x00"))
+	if p.cap.Parameters == nil {
+		return ""
+	}
+	return p.cap.Parameters["payload"]
 }

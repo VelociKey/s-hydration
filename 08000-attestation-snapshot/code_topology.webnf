@@ -1,0 +1,91 @@
+# Go Code Topology Report (weBNF)
+[code-topology "s-hydration"] {
+    module = "sov.fleet/s-hydration" ;
+    timestamp = "2026-05-23T04:43:28Z" ;
+    target_dir = "C:/aCogSpaceSeed/00flow/s-hydration" ;
+
+    packages = [
+        "main",
+        "registry",
+        "synthesis"
+    ] ;
+
+    internal_imports = [
+        "sov.fleet/s-latentlingua/02000-logic-libraries/ir",
+        "sov.fleet/s-latentlingua/02000-logic-libraries/snparser",
+        "sov.fleet/s-logiclibrary/00200-logic-libraries/bicodec"
+    ] ;
+
+    external_imports = [
+        "github.com/quic-go/quic-go/http3"
+    ] ;
+
+    structs = [
+        "name: SACPBroker | file: 100-synthesis-engine/sacp_broker.go | fields: 13 | methods: RegisterTransitionToken,ValidateMonotonicInvariant,StartUDPServer,listenLoop,ProcessMetabolicSwap,SetIdleTimeout,StartIdleWatchdog,ResetIdleWatchdog,OpenInvocationStream,CloseInvocationStream,GetActiveStreamsCount,Close",
+        "name: QAPCHeader | file: 100-synthesis-engine/sacp_proxy.go | fields: 3 | methods: Delegate",
+        "name: SACPCallerProxy | file: 100-synthesis-engine/sacp_proxy.go | fields: 2 | methods: Buffer,SetOriginalUUID,GetOriginalUUID,SetOriginalAuthority,GetOriginalAuthority,SetCurrentAuthority,GetCurrentAuthority,SetPayload,GetPayload",
+        "name: SACPCalleeProxy | file: 100-synthesis-engine/sacp_proxy.go | fields: 2 | methods: GetOriginalUUID,GetOriginalAuthority,GetCurrentAuthority,GetPayload",
+        "name: HydrationTarget | file: hydrator.go | fields: 5 | methods: ",
+        "name: WorkspaceFacets | file: hydrator.go | fields: 5 | methods: ",
+        "name: WorkspaceHarness | file: hydrator.go | fields: 3 | methods: Validate",
+        "name: DefaultCommandRunner | file: hydrator.go | fields: 0 | methods: Run",
+        "name: Hydrator | file: hydrator.go | fields: 1 | methods: Register,Execute,InvokeToAdd",
+        "name: DynamicSynthesisMechanism | file: hydrator.go | fields: 1 | methods: Mode,Name,Hydrate",
+        "name: StaticIngestionMechanism | file: hydrator.go | fields: 0 | methods: Mode,Name,Hydrate",
+        "name: MCPDiscoveryMechanism | file: hydrator.go | fields: 1 | methods: Mode,Name,Hydrate",
+        "name: InvokeInput | file: hydrator.go | fields: 4 | methods: ",
+        "name: MockCommandRunner | file: hydrator_test.go | fields: 3 | methods: Run",
+        "name: ArtifactRecord | file: rehydrate.go | fields: 8 | methods: ",
+        "name: RehydrateV2 | file: rehydrate.go | fields: 0 | methods: Run,determineExecutionPlan,parseSBOM,IterativeDFWalk,PruneAndHash,shouldPrune",
+        "name: ArtifactRecord | file: sov-hydrator.go | fields: 8 | methods: ",
+        "name: ExperienceRecord | file: sov-hydrator.go | fields: 5 | methods: ",
+        "name: Metrics | file: sov-hydrator.go | fields: 4 | methods: ",
+        "name: SovereignScaler | file: sov-hydrator.go | fields: 7 | methods: initializeWarmPool,spawnWorker,Submit,Shutdown",
+        "name: SovereignHydrator | file: sov-hydrator.go | fields: 9 | methods: Run,executeExecutionPlan,printABTestReport,hydrateAndSealTarget,SovereignProbe,ExecuteDownload,RunSecurityScan,Unzip,UnTgz,determineExecutionPlan,printExecutionPlan,parseSBOM,loadExperience,saveExperience,IterativeDFWalk,PruneAndHash,shouldPrune,blake3Hash,CopyDirectory",
+        "name: ProgressWriter | file: sov-hydrator.go | fields: 6 | methods: Write"
+    ] ;
+
+    functions = [
+        "name: NewSACPBroker | file: 100-synthesis-engine/sacp_broker.go | package: synthesis",
+        "name: TestMonotonicAuthority | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: TestMetabolicHotSwap | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: TestZeroCopySymmetricProxy | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: TestBrokerUDPSessionTraffic | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: TestIdleShutdownWatchdog | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: TestStreamSwapLifecycle | file: 100-synthesis-engine/sacp_conformance_test.go | package: synthesis",
+        "name: NewQAPCHeader | file: 100-synthesis-engine/sacp_proxy.go | package: synthesis",
+        "name: NewSACPCallerProxy | file: 100-synthesis-engine/sacp_proxy.go | package: synthesis",
+        "name: NewSACPCalleeProxy | file: 100-synthesis-engine/sacp_proxy.go | package: synthesis",
+        "name: TransitionPath | file: 400-registry/registry.go | package: registry",
+        "name: ExtractLogicalPaths | file: 400-registry/registry.go | package: registry",
+        "name: ParseConfigFile | file: 400-registry/registry.go | package: registry",
+        "name: TestSACPGrammarSyntax | file: 400-registry/sacp_test.go | package: registry",
+        "name: TestHydratorGrammarSyntax | file: 400-registry/sforge_paths_test.go | package: registry",
+        "name: TestSForgePathsSyntax | file: 400-registry/sforge_paths_test.go | package: registry",
+        "name: ParseWorkspaceHarness | file: hydrator.go | package: main",
+        "name: NewHydrator | file: hydrator.go | package: main",
+        "name: ParseWebNFTargets | file: hydrator.go | package: main",
+        "name: TestHydratorPluginRegistration | file: hydrator_test.go | package: main",
+        "name: TestDynamicSynthesisPlugin | file: hydrator_test.go | package: main",
+        "name: TestStaticIngestionPlugin | file: hydrator_test.go | package: main",
+        "name: TestMCPDiscoveryPlugin | file: hydrator_test.go | package: main",
+        "name: TestParseWebNFTargets | file: hydrator_test.go | package: main",
+        "name: TestInvokeToAddPermanent | file: hydrator_test.go | package: main",
+        "name: TestInvokeToAddEphemeral | file: hydrator_test.go | package: main",
+        "name: TestParseWorkspaceHarnessWithFacets | file: hydrator_test.go | package: main",
+        "name: TestContainerInheritanceRules | file: hydrator_test.go | package: main",
+        "name: TestFacetValidationRules | file: hydrator_test.go | package: main",
+        "name: TestWorkspaceKindValidationRules | file: hydrator_test.go | package: main",
+        "name: TestWorkspaceKindModelValidationRules | file: hydrator_test.go | package: main",
+        "name: NewSovereignScaler | file: sov-hydrator.go | package: main",
+        "name: NewSovereignHydrator | file: sov-hydrator.go | package: main",
+        "name: TestDetermineExecutionPlan | file: sov-hydrator_test.go | package: main",
+        "name: TestSovereignScalerAutoscaling | file: sov-hydrator_test.go | package: main",
+        "name: TestProgressWriterCalculation | file: sov-hydrator_test.go | package: main",
+        "name: TestParseSBOMRegistry | file: sov-hydrator_test.go | package: main",
+        "name: TestExperienceRegistryLoadSave | file: sov-hydrator_test.go | package: main",
+        "name: TestIterativeDFWalkAndMetabolicPruning | file: sov-hydrator_test.go | package: main",
+        "name: TestSovereignProbeAndAltSvc | file: sov-hydrator_test.go | package: main",
+        "name: TestSovereignABTestCampaign | file: sov-hydrator_test.go | package: main"
+    ] ;
+}

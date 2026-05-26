@@ -2,6 +2,7 @@ package synthesis
 
 import (
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -152,3 +153,85 @@ func TestBrokerUDPSessionTraffic(t *testing.T) {
 		t.Errorf("UDP Session mismatch: %+v", session)
 	}
 }
+
+func TestIdleShutdownWatchdog(t *testing.T) {
+	broker := NewSACPBroker("127.0.0.1:9099", "127.0.0.1:8080")
+	defer broker.Close()
+
+	// 1. Configure the test idle watchdog timeout parameter to 100 milliseconds
+	broker.SetIdleTimeout(100 * time.Millisecond)
+
+	shutdownTriggered := false
+	var triggerMu sync.Mutex
+
+	broker.StartIdleWatchdog(func() {
+		triggerMu.Lock()
+		shutdownTriggered = true
+		triggerMu.Unlock()
+	})
+
+	// 2. Wait 50ms (less than timeout) - watchdog should not fire yet
+	time.Sleep(50 * time.Millisecond)
+	triggerMu.Lock()
+	if shutdownTriggered {
+		triggerMu.Unlock()
+		t.Fatal("Watchdog fired prematurely before timeout duration elapsed!")
+	}
+	triggerMu.Unlock()
+
+	// 3. Reset watchdog manually to simulate task arrival activity
+	broker.ResetIdleWatchdog()
+
+	// 4. Wait another 70ms - total elapsed is 120ms, but since reset occurred at 50ms, it should still not fire
+	time.Sleep(70 * time.Millisecond)
+	triggerMu.Lock()
+	if shutdownTriggered {
+		triggerMu.Unlock()
+		t.Fatal("Watchdog fired prematurely despite active ResetIdleWatchdog call!")
+	}
+	triggerMu.Unlock()
+
+	// 5. Wait 120ms (more than remaining watchdog reset duration) - it must fire now
+	time.Sleep(120 * time.Millisecond)
+	triggerMu.Lock()
+	if !shutdownTriggered {
+		triggerMu.Unlock()
+		t.Fatal("Watchdog failed to fire after idle timeout period elapsed!")
+	}
+	triggerMu.Unlock()
+}
+
+func TestStreamSwapLifecycle(t *testing.T) {
+	broker := NewSACPBroker("127.0.0.1:9099", "127.0.0.1:8080")
+	defer broker.Close()
+
+	// 1. Initial stream count should be 0
+	if broker.GetActiveStreamsCount() != 0 {
+		t.Errorf("Expected 0 active streams, got %d", broker.GetActiveStreamsCount())
+	}
+
+	// 2. Open Stream (Task N starts)
+	broker.OpenInvocationStream()
+	if broker.GetActiveStreamsCount() != 1 {
+		t.Errorf("Expected 1 active stream, got %d", broker.GetActiveStreamsCount())
+	}
+
+	// 3. Open Second Stream (Parallel Task N+1 starts)
+	broker.OpenInvocationStream()
+	if broker.GetActiveStreamsCount() != 2 {
+		t.Errorf("Expected 2 active streams, got %d", broker.GetActiveStreamsCount())
+	}
+
+	// 4. Close First Stream (Task N finishes - Stream closed cleanly via FIN/EOF)
+	broker.CloseInvocationStream()
+	if broker.GetActiveStreamsCount() != 1 {
+		t.Errorf("Expected 1 active stream left, got %d", broker.GetActiveStreamsCount())
+	}
+
+	// 5. Close Second Stream (Task N+1 finishes)
+	broker.CloseInvocationStream()
+	if broker.GetActiveStreamsCount() != 0 {
+		t.Errorf("Expected 0 active streams left, got %d", broker.GetActiveStreamsCount())
+	}
+}
+

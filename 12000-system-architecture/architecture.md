@@ -15,7 +15,7 @@ graph TD
 
     subgraph Internal Hydration (Bazel Orchestration)
         BazelRules[Bazel Rulesets & Rules_Go] -->|Offline Decoupled Promotion| LocalForge[s-forge Repository Silo]
-        LocalForge -->|Relative Local Mapping| MODULE[MODULE.bazel / WORKSPACE]
+        LocalForge -->|Relative Local Mapping| MODULE[MODULE.bazel]
         MODULE -->|Bazel Orchestrator| Compilation[Local AMD64 Hermetic Compilation]
     end
 ```
