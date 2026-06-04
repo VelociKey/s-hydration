@@ -1,7 +1,8 @@
-package registry
+package registry_attestations
 
 import (
-	"path/filepath"
+	. "sov.fleet/s-hydration/400-registry"
+"path/filepath"
 	"testing"
 )
 

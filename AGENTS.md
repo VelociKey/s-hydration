@@ -6,6 +6,10 @@ This workspace houses the NATVS Hydration Engine, which orchestrates Dynamic bui
 - **Orchestration:** Executes the centralized Hydration parser and compiler runners across the global fleet.
 - **Triple Hydration:** Manages dynamic compilers (compilation rules in `100-synthesis-engine/`), static retrievals (in `200-ingestion-engine/`), and capability discovery (in `300-discovery-engine/`).
 - **Integration:** Promotes verified compiled/acquired/discovered artifacts symmetrically to s-forge (Platform) and sCauldron (Licensees) using the central `400-registry/hydrator.wag` mappings.
+- **Registry & Manifest Pattern:** All hydration processes (external artifacts, internal builds, and any other source we use) must follow the Routing vs. Audit separation:
+  - The registry (`hydratedregistry.go`) functions as a routing table holding stable, version-agnostic names mapped to locations.
+  - The SBOM/Manifest (`sbom.external_artifact.webnf`) serves as the audit log containing versions, dates, and verification hash history.
+  - Stand-alone synchronization/repair (`hydrator -sync`) keeps the registry aligned using a two-phase filesystem veracity scanner (Phase A: Scan & Add; Phase B: Verify & Delete).
 
 ## SACP / qAPC raw QUIC Core Integration
 This workspace holds the fully implemented, compiled, and verified SACP / qAPC raw QUIC networking core:

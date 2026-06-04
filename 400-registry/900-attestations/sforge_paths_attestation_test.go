@@ -1,7 +1,8 @@
-package registry
+package registry_attestations
 
 import (
-	"os"
+	. "sov.fleet/s-hydration/400-registry"
+"os"
 	"testing"
 	"path/filepath"
 	"sov.fleet/s-latentlingua/02000-logic-libraries/snparser"
@@ -9,7 +10,7 @@ import (
 
 func TestHydratorGrammarSyntax(t *testing.T) {
 	// 1. Read the grammar file
-	content, err := os.ReadFile("hydrator.wag")
+	content, err := os.ReadFile("../hydrator.wag")
 	if err != nil {
 		t.Fatalf("Failed to read hydrator.wag: %v", err)
 	}
@@ -41,7 +42,7 @@ func TestHydratorGrammarSyntax(t *testing.T) {
 
 func TestSForgePathsSyntax(t *testing.T) {
 	// 1. Read the webnf config file
-	content, err := os.ReadFile("sforge_paths_hydrator.webnf")
+	content, err := os.ReadFile("../sforge_paths_hydrator.webnf")
 	if err != nil {
 		t.Fatalf("Failed to read config: %v", err)
 	}

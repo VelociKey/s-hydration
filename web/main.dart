@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
-import 'hermes_interop.dart';
 
 void main() {
   runApp(const AetherSovereignSurface());

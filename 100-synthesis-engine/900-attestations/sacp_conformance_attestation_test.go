@@ -1,7 +1,8 @@
-package synthesis
+package synthesis_attestations
 
 import (
-	"net"
+	. "sov.fleet/s-hydration/100-synthesis-engine"
+"net"
 	"sync"
 	"testing"
 	"time"
@@ -72,11 +73,11 @@ func TestMetabolicHotSwap(t *testing.T) {
 		t.Fatalf("Metabolic Hot-Swap failed: %v", err)
 	}
 
-	if broker.activeSession == nil {
+	if broker.GetActiveSession() == nil {
 		t.Fatal("Active session is nil after successful swap")
 	}
-	if broker.activeSession.OriginalUUID != "guest-uuid-999" || broker.activeSession.CurrentAuthority != AuthWorker {
-		t.Errorf("Session mismatch: %+v", broker.activeSession)
+	if broker.GetActiveSession().OriginalUUID != "guest-uuid-999" || broker.GetActiveSession().CurrentAuthority != AuthWorker {
+		t.Errorf("Session mismatch: %+v", broker.GetActiveSession())
 	}
 
 	// 3. Single-use enforcement check: second swap attempt with the same token must fail
@@ -141,9 +142,9 @@ func TestBrokerUDPSessionTraffic(t *testing.T) {
 	// 3. Allow brief window for loopback processing
 	time.Sleep(50 * time.Millisecond)
 
-	broker.mu.RLock()
-	session := broker.activeSession
-	broker.mu.RUnlock()
+	broker.RLockMu()
+	session := broker.GetActiveSession()
+	broker.RUnlockMu()
 
 	if session == nil {
 		t.Fatal("UDP Broker failed to process incoming UDP frame: activeSession is nil")

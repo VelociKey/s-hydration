@@ -1,14 +1,14 @@
-package registry
+package registry_attestations
 
 import (
-	"os"
+"os"
 	"testing"
 	"sov.fleet/s-latentlingua/02000-logic-libraries/snparser"
 )
 
 func TestSACPGrammarSyntax(t *testing.T) {
 	// 1. Read the grammar file
-	content, err := os.ReadFile("sacp.wag")
+	content, err := os.ReadFile("../sacp.wag")
 	if err != nil {
 		t.Fatalf("Failed to read sacp.wag: %v", err)
 	}

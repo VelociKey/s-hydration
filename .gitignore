@@ -1,4 +1,20 @@
-/c*/
+# Universal .gitignore for 00flow workspaces
+
+# Ephemeral/Cognitive Layer directories
+/c[0-9][0-9][0-9][0-9]*
+
+# Build & Promotion Output directories (5-digit taxonomy starting with 9)
+/9[0-9][0-9][0-9][0-9]*
+
+# Standard build outputs
+/bin/
 *.exe
+*.wasm
 *.test
+*.prof
+*.out
+coverage.out
+
+# Operating system metadata
 .DS_Store
+Thumbs.db

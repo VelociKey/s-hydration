@@ -113,7 +113,7 @@ The NATVS Engine upgrades performance from cold-start ephemeral execution to a *
 
 ### 3.1 Warm microVM Invariant & virtio-fs Caching
 By keeping a dedicated pool of Firecracker MicroVMs alive in a warm running state:
-1. **Kernel Page Cache Retention:** As Jules executes successive Bazel builds, the guest VM's Linux kernel caches heavily read compiler stubs, shared libraries, and build rules (such as `rules_go` and the `go-sdk-green-tea` located in `s-forge`) within the VM's guest RAM.
+1. **Kernel Page Cache Retention:** As Jules executes successive Bazel builds, the guest VM's Linux kernel caches heavily read compiler stubs, shared libraries, and build rules (such as `rules_go` and the `golang` SDK located in `s-forge`) within the VM's guest RAM.
 2. **Mount Preservation:** The host-to-guest `virtio-fs` mounts linking the host's `C:\aCogSpaceSeed\00flow\s-forge` directory into the microVM sandbox stay hot and active. Subsequent builds skip the host-side file-handle lookup and guest mount handshakes, executing at **direct RAM speeds** ($O(1)$ disk overhead).
 3. **Warm Compiler Daemons:** Background Bazel analysis and compilation workers remain resident in memory within the Guest MicroVM, avoiding JVM/compiler startup cold costs on successive executions.
 

@@ -1,6 +1,7 @@
-package main
+package hydration_attestations
 
 import (
+	. "sov.fleet/s-hydration"
 	"bytes"
 	"context"
 	"os"
@@ -9,21 +10,21 @@ import (
 	"testing"
 	"time"
 
-
+	"sov.fleet/s-hydration/98000-internal-libraries/quicdl"
 )
 
 func TestDetermineExecutionPlan(t *testing.T) {
 	h := NewSovereignHydrator()
 
 	// Mock dynamic experience size
-	h.experience["custom-massive"] = ExperienceRecord{
+	h.GetExperience()["custom-massive"] = ExperienceRecord{
 		TargetName:     "custom-massive",
 		LastLoadedSize: 150 * 1024 * 1024, // 150MB -> Phase 2
 	}
 
 	records := []ArtifactRecord{
 		{Name: "blake3", OriginalSize: 1024 * 1024},                  // Phase 1
-		{Name: "go-sdk-green-tea", OriginalSize: 215 * 1024 * 1024},  // Phase 1
+		{Name: "golang", OriginalSize: 215 * 1024 * 1024},  // Phase 1
 		{Name: "flutter-sdk-firehorse", OriginalSize: 1932735283},    // Phase 2 (1.8 GB)
 		{Name: "custom-massive", OriginalSize: 50 * 1024},            // Phase 2 via experience
 		{Name: "bazel-rules-go", OriginalSize: 10 * 1024 * 1024},     // Phase 3 github.com
@@ -31,14 +32,14 @@ func TestDetermineExecutionPlan(t *testing.T) {
 		{Name: "step-ca", OriginalSize: 50 * 1024},                   // Phase 3 small local placeholder
 	}
 
-	bootstrap, massive, parallelGroups := h.determineExecutionPlan(records)
+	bootstrap, massive, parallelGroups := h.DetermineExecutionPlan(records)
 
 	// Verify Phase 1
 	if len(bootstrap) != 2 {
 		t.Errorf("Expected 2 bootstrap targets, got %d", len(bootstrap))
 	}
 	for _, b := range bootstrap {
-		if b.Name != "blake3" && b.Name != "go-sdk-green-tea" {
+		if b.Name != "blake3" && b.Name != "golang" {
 			t.Errorf("Unexpected bootstrap target: %s", b.Name)
 		}
 	}
@@ -95,7 +96,7 @@ func TestSovereignScalerAutoscaling(t *testing.T) {
 
 func TestProgressWriterCalculation(t *testing.T) {
 	var buf bytes.Buffer
-	pw := &ProgressWriter{
+	pw := &quicdl.ProgressWriter{
 		TargetName: "test-target",
 		TotalBytes: 1000,
 		StartTime:  time.Now().Add(-1 * time.Second),
@@ -164,7 +165,7 @@ func TestExperienceRegistryLoadSave(t *testing.T) {
 
 	expPath := filepath.Join(tmpDir, "experience.webnf")
 
-	h.experience["git"] = ExperienceRecord{
+	h.GetExperience()["git"] = ExperienceRecord{
 		TargetName:     "git",
 		LastLoadedSize: 125483360,
 		LastDuration:   5 * time.Second,
@@ -172,19 +173,19 @@ func TestExperienceRegistryLoadSave(t *testing.T) {
 	}
 
 	// Save
-	err = h.saveExperience(expPath)
+	err = h.SaveExperience(expPath)
 	if err != nil {
 		t.Fatalf("Save experience failed: %v", err)
 	}
 
 	// Load into a new hydrator
 	h2 := NewSovereignHydrator()
-	err = h2.loadExperience(expPath)
+	err = h2.LoadExperience(expPath)
 	if err != nil {
 		t.Fatalf("Load experience failed: %v", err)
 	}
 
-	rec, exists := h2.experience["git"]
+	rec, exists := h2.GetExperience()["git"]
 	if !exists {
 		t.Fatal("Git experience record missing in loaded hydrator")
 	}
@@ -224,7 +225,7 @@ func TestIterativeDFWalkAndMetabolicPruning(t *testing.T) {
 
 	// Run metabolic pruning pass
 	err = IterativeDFWalk(tmpDir, func(curr string, info os.FileInfo) (bool, error) {
-		shouldPrune, isDirPrune := h.shouldPrune(curr, info)
+		shouldPrune, isDirPrune := h.ShouldPrune(curr, info)
 		if shouldPrune {
 			if isDirPrune {
 				os.RemoveAll(curr)
@@ -269,12 +270,12 @@ func TestSovereignProbeAndAltSvc(t *testing.T) {
 
 func TestSovereignABTestCampaign(t *testing.T) {
 	h := NewSovereignHydrator()
-	h.abtest = true
-	h.sequential = false
+	h.SetABTest(true)
+	h.SetSequential(false)
 
 	// Mock experiences
-	h.experience["pkg-a"] = ExperienceRecord{TargetName: "pkg-a", LastLoadedSize: 500, LastDuration: 10 * time.Millisecond}
-	h.experience["pkg-b"] = ExperienceRecord{TargetName: "pkg-b", LastLoadedSize: 1000, LastDuration: 20 * time.Millisecond}
+	h.GetExperience()["pkg-a"] = ExperienceRecord{TargetName: "pkg-a", LastLoadedSize: 500, LastDuration: 10 * time.Millisecond}
+	h.GetExperience()["pkg-b"] = ExperienceRecord{TargetName: "pkg-b", LastLoadedSize: 1000, LastDuration: 20 * time.Millisecond}
 
 	seqDurations := map[string]time.Duration{
 		"pkg-a": 15 * time.Millisecond,
@@ -291,5 +292,97 @@ func TestSovereignABTestCampaign(t *testing.T) {
 	}
 
 	// Proves printABTestReport compiles and formats side-by-side correctly!
-	h.printABTestReport(records, seqDurations, 40*time.Millisecond, parDurations, 15*time.Millisecond)
+	h.PrintABTestReport(records, seqDurations, 40*time.Millisecond, parDurations, 15*time.Millisecond)
 }
+
+func TestCascadingBuildDAG(t *testing.T) {
+	// Test parseGoWork on mock content
+	mockGoWork := `go 1.26.3
+use (
+	./00flow/s-sacp
+	./00flow/s-natives
+	./00flow/s-hydration
+)
+`
+	tmpFile, err := os.CreateTemp("", "go.work-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp go.work: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	_, _ = tmpFile.WriteString(mockGoWork)
+	tmpFile.Close()
+
+	workspaces, err := ParseGoWork(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse go.work: %v", err)
+	}
+	if len(workspaces) != 3 {
+		t.Errorf("Expected 3 workspaces, got %d: %v", len(workspaces), workspaces)
+	}
+
+	// Test Topological Sort
+	graph := map[string][]string{
+		"s-natives":   {"s-sacp"},
+		"s-hydration": {"s-sacp", "s-natives"},
+		"s-sacp":      {},
+	}
+
+	downstream := FindDownstreamNodes(graph, "s-sacp")
+	if !downstream["s-natives"] || !downstream["s-hydration"] {
+		t.Errorf("Expected downstream of s-sacp to include s-natives and s-hydration: %v", downstream)
+	}
+
+	order, err := TopologicalSort(graph, downstream)
+	if err != nil {
+		t.Fatalf("Topological sort failed: %v", err)
+	}
+
+	nativesIdx := -1
+	hydrationIdx := -1
+	for i, node := range order {
+		if node == "s-natives" {
+			nativesIdx = i
+		} else if node == "s-hydration" {
+			hydrationIdx = i
+		}
+	}
+
+	if nativesIdx == -1 || hydrationIdx == -1 || nativesIdx > hydrationIdx {
+		t.Errorf("Invalid topological order: %v (nativesIdx=%d, hydrationIdx=%d)", order, nativesIdx, hydrationIdx)
+	}
+}
+
+func TestParseSBOMRegistryWithSourceAndBuildPolicy(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "mock-extended-sbom-*.webnf")
+	if err != nil {
+		t.Fatalf("Failed to create temp SBOM: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	mockData := `SBOM-V2
+2026-05-18T13:30:34-04:00
+AAIF-GreenTea-Rehydrator-v2.0
+# VERACITY-SEAL: mock-seal
+blake3|1.5.0|sha512:zip|sha512:binary|124667|124667|2026-05-18T13:30:38-04:00|https://github.com/zeebo/blake3/archive/refs/tags/v0.2.4.zip|GO_NATIVE
+`
+	_, _ = tmpFile.WriteString(mockData)
+	tmpFile.Close()
+
+	records, err := ParseSBOM(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse SBOM: %v", err)
+	}
+
+	if len(records) != 1 {
+		t.Fatalf("Expected 1 parsed record, got %d", len(records))
+	}
+
+	r := records[0]
+	if r.Name != "blake3" || r.Version != "1.5.0" || r.OriginalHash != "sha512:zip" || r.PrunedHash != "sha512:binary" {
+		t.Errorf("Mismatch in parsed SBOM record: %+v", r)
+	}
+	if r.SourceURL != "https://github.com/zeebo/blake3/archive/refs/tags/v0.2.4.zip" || r.BuildPolicy != "GO_NATIVE" {
+		t.Errorf("Mismatch in parsed source URL or build policy: %+v", r)
+	}
+}
+

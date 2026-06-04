@@ -7,8 +7,15 @@ workspace_harness {
         target {
             mode : DYNAMIC ;
             engine : "go-compiler" ;
-            src : "s-hydration" ;
+            src : "cmd/hydrator" ;
             out : "s-hydration" ;
+            category : "TOOLCHAIN" ;
+        }
+        target {
+            mode : DYNAMIC ;
+            engine : "go-compiler" ;
+            src : "cmd/int-rehydrator" ;
+            out : "int-rehydrator" ;
             category : "TOOLCHAIN" ;
         }
     }
