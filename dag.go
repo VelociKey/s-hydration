@@ -1,13 +1,16 @@
 package hydration
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"sov.fleet/s-hydration/400-registry"
 )
@@ -102,6 +105,38 @@ func queryWorkspaceImports(goExe string, wsPath string) ([]string, error) {
 	return result, nil
 }
 
+type WsCacheEntry struct {
+	LastModTime time.Time `json:"last_mod_time"`
+	Imports     []string  `json:"imports"`
+}
+
+func getWorkspaceNewestModTime(dir string) (time.Time, error) {
+	var newest time.Time
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if name == ".git" || name == "71000-build-harness" || name == "c0990-ephemeral-scratch" || name == "s-forge" || name == "bin" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".go" || ext == ".mod" || ext == ".work" {
+			info, err := d.Info()
+			if err == nil {
+				if info.ModTime().After(newest) {
+					newest = info.ModTime()
+				}
+			}
+		}
+		return nil
+	})
+	return newest, err
+}
+
 func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 	workspaces, err := parseGoWork(goWorkPath)
 	if err != nil {
@@ -125,13 +160,40 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 		}
 	}
 
+	cachePath := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "dependencies.cache.json")
+	cache := make(map[string]WsCacheEntry)
+	if data, err := os.ReadFile(cachePath); err == nil {
+		_ = json.Unmarshal(data, &cache)
+	}
+
 	dependencyMap := make(map[string][]string)
 	for wsAbs := range wsModuleMap {
 		wsName := filepath.Base(wsAbs)
-		imports, err := queryWorkspaceImports(goExe, wsAbs)
-		if err != nil {
-			dependencyMap[wsName] = []string{}
-			continue
+
+		newestTime, walkErr := getWorkspaceNewestModTime(wsAbs)
+		
+		var imports []string
+		var cacheHit bool
+		if walkErr == nil {
+			if entry, ok := cache[wsName]; ok {
+				if !newestTime.After(entry.LastModTime) {
+					imports = entry.Imports
+					cacheHit = true
+				}
+			}
+		}
+
+		if !cacheHit {
+			var queryErr error
+			imports, queryErr = queryWorkspaceImports(goExe, wsAbs)
+			if queryErr != nil {
+				dependencyMap[wsName] = []string{}
+				continue
+			}
+			cache[wsName] = WsCacheEntry{
+				LastModTime: newestTime,
+				Imports:     imports,
+			}
 		}
 
 		var deps []string
@@ -152,6 +214,11 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 		dependencyMap[wsName] = deps
 	}
 
+	_ = os.MkdirAll(filepath.Dir(cachePath), 0755)
+	if cacheData, err := json.MarshalIndent(cache, "", "  "); err == nil {
+		_ = os.WriteFile(cachePath, cacheData, 0644)
+	}
+
 	var sb strings.Builder
 	sb.WriteString("; Authoritative Dependency Graph Database\n")
 	sb.WriteString("dependencies {\n")
@@ -170,14 +237,83 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 		}
 		sb.WriteString(fmt.Sprintf("    %s = %q ;\n", key, strings.Join(formattedDeps, ",")))
 	}
+	sb.WriteString("}\n\n")
+
+	// Discover and append Dart package dependencies
+	dartDeps, err := discoverDartPackages(projectRoot)
+	if err == nil {
+		sb.WriteString("dart_packages {\n")
+		for ws, deps := range dartDeps {
+			key := strings.ReplaceAll(ws, "-", "_")
+			if len(key) > 0 && (key[0] >= '0' && key[0] <= '9') {
+				key = "ws_" + key
+			}
+			var formattedDeps []string
+			for _, dep := range deps {
+				d := strings.ReplaceAll(dep, "-", "_")
+				if len(d) > 0 && d[0] >= '0' && d[0] <= '9' {
+					d = "ws_" + d
+				}
+				formattedDeps = append(formattedDeps, d)
+			}
+			sb.WriteString(fmt.Sprintf("    %s = %q ;\n", key, strings.Join(formattedDeps, ",")))
+		}
+		sb.WriteString("}\n\n")
+	}
+
+	// Discover and append Grammar bindings
+	grammarBindings, err := discoverGrammarBindings(projectRoot)
+	if err == nil {
+		sb.WriteString("grammar_bindings {\n")
+		for file, grammars := range grammarBindings {
+			key := strings.ReplaceAll(strings.ReplaceAll(file, "-", "_"), ".", "_")
+			if len(key) > 0 && (key[0] >= '0' && key[0] <= '9') {
+				key = "file_" + key
+			}
+			var formattedGrammars []string
+			for _, g := range grammars {
+				formattedGrammars = append(formattedGrammars, strings.ReplaceAll(g, "-", "_"))
+			}
+			sb.WriteString(fmt.Sprintf("    %s = %q ;\n", key, strings.Join(formattedGrammars, ",")))
+		}
+		sb.WriteString("}\n")
+	}
+
+	// Output logical clusters mapping
+	sb.WriteString("\nclusters {\n")
+	for ws := range dependencyMap {
+		cluster := getClusterForWorkspace(ws)
+		key := strings.ReplaceAll(ws, "-", "_")
+		if len(key) > 0 && (key[0] >= '0' && key[0] <= '9') {
+			key = "ws_" + key
+		}
+		sb.WriteString(fmt.Sprintf("    %s = %q ;\n", key, cluster))
+	}
 	sb.WriteString("}\n")
 
-	destPath := filepath.Join(projectRoot, "c0990-ephemeral-scratch", "dependencies.webnf")
+	destPath := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "dependencies.webnf")
 	err = os.MkdirAll(filepath.Dir(destPath), 0755)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(destPath, []byte(sb.String()), 0644)
+}
+
+func getClusterForWorkspace(ws string) string {
+	switch ws {
+	case "s-latentlingua", "s-adk", "s-a2a", "s-sacp":
+		return "grammar_languages"
+	case "s-parallizer", "s-agentbox", "s-scorecard", "s-scoreboard":
+		return "agent_sandbox_orchestration"
+	case "s-actors", "s-mcp", "s-natives", "s-animus":
+		return "active_actors"
+	case "s-hydration", "s-builder", "s-forge", "s-seed", "s-fab-aides", "s-distribution", "s-hydrationcache":
+		return "build_toolchain"
+	case "s-introspection", "s-taxonomy-guard", "s-assurance", "s-trust-circle", "s-authorize", "s-hardware-bridge", "s-webconduit":
+		return "governance_observability"
+	default:
+		return "other"
+	}
 }
 
 func loadDependencyGraph(depWebnfPath string) (map[string][]string, error) {
@@ -275,4 +411,96 @@ func topologicalSort(graph map[string][]string, nodes map[string]bool) ([]string
 	}
 
 	return order, nil
+}
+
+func discoverDartPackages(projectRoot string) (map[string][]string, error) {
+	dartDeps := make(map[string][]string)
+	err := filepath.WalkDir(projectRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if strings.HasPrefix(name, ".") || name == "c0990-ephemeral-scratch" || name == "build-caches" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() == "pubspec.yaml" {
+			wsName := filepath.Base(filepath.Dir(path))
+			file, err := os.Open(path)
+			if err != nil {
+				return nil
+			}
+			defer file.Close()
+
+			var deps []string
+			scanner := bufio.NewScanner(file)
+			inDeps := false
+			for scanner.Scan() {
+				line := scanner.Text()
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+					continue
+				}
+
+				if strings.HasPrefix(line, "dependencies:") || strings.HasPrefix(line, "dev_dependencies:") {
+					inDeps = true
+					continue
+				} else if inDeps && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+					inDeps = false
+				}
+
+				if inDeps {
+					if strings.Contains(trimmed, ":") {
+						parts := strings.SplitN(trimmed, ":", 2)
+						depName := strings.TrimSpace(parts[0])
+						if depName != "" {
+							deps = append(deps, depName)
+						}
+					}
+				}
+			}
+			var uniqueDeps []string
+			keys := make(map[string]bool)
+			for _, entry := range deps {
+				if _, value := keys[entry]; !value {
+					keys[entry] = true
+					uniqueDeps = append(uniqueDeps, entry)
+				}
+			}
+			if len(uniqueDeps) > 0 {
+				dartDeps[wsName] = uniqueDeps
+			}
+		}
+		return nil
+	})
+	return dartDeps, err
+}
+
+func discoverGrammarBindings(projectRoot string) (map[string][]string, error) {
+	bindings := make(map[string][]string)
+	err := filepath.WalkDir(projectRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if strings.HasPrefix(name, ".") || name == "c0990-ephemeral-scratch" || name == "build-caches" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		name := d.Name()
+		if strings.HasSuffix(name, ".webnf") {
+			parts := strings.Split(name, ".")
+			if len(parts) >= 3 {
+				dslName := parts[len(parts)-2]
+				bindings[name] = []string{dslName}
+			}
+		}
+		return nil
+	})
+	return bindings, err
 }
