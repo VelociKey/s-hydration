@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha512"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -33,7 +34,7 @@ import (
 const (
 	ProtoH2 uint8 = 1 << iota
 	ProtoH3
-	ShadowDir         = `C:\aCogSpaceSeed\c0990-ephemeral-scratch\C0990-verify-download`
+	ShadowDir         = `C:\aCogSpaceSeed\00flow\s-hydrationcache\c0990-ephemeral-scratch\C0990-verify-download`
 	TrivyPath         = `C:\aCogSpaceSeed\00flow\s-forge\91000-external-executables\trivy\trivy.exe`
 	SbomPath          = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.external_artifact.webnf`
 	ExperiencePath    = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\hydration_experience.webnf`
@@ -148,8 +149,8 @@ type IngressReportRecord struct {
 	Status               string
 }
 
-// SovereignHydrator represents the dynamic self-learning engine.
-type SovereignHydrator struct {
+// SovereignPurifier represents the dynamic self-learning engine.
+type SovereignPurifier struct {
 	downloader    *quicdl.Downloader
 	ua            string
 	experience    map[string]ExperienceRecord
@@ -165,18 +166,18 @@ type SovereignHydrator struct {
 	reportMutex   sync.Mutex
 }
 
-func NewSovereignHydrator() *SovereignHydrator {
+func NewSovereignPurifier() *SovereignPurifier {
 	ua := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	d := quicdl.NewDownloader()
 	d.SetUserAgent(ua)
-	return &SovereignHydrator{
+	return &SovereignPurifier{
 		downloader: d,
 		ua:         ua,
 		experience: make(map[string]ExperienceRecord),
 	}
 }
 
-func HydratorMain() {
+func PurifierMain() {
 	checkFlag := flag.Bool("check", false, "Execute full dry-run dynamic scheduling checklist")
 	forceFlag := flag.Bool("force", false, "Force download, metabolic prune, and seal all artifacts")
 	onlyFlag := flag.String("only", "", "Hydrate and verify a single targeted package")
@@ -262,7 +263,7 @@ func HydratorMain() {
 		*checkFlag = true
 	}
 
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 	h.progress = *progressFlag
 	h.sequential = *sequentialFlag
 	h.abtest = *abtestFlag
@@ -270,12 +271,15 @@ func HydratorMain() {
 	h.updateHashes = *updateHashesFlag
 	err := h.Run(*checkFlag, *forceFlag, *onlyFlag)
 	if err != nil {
-		slog.Error("Sovereign Hydrator failed", "error", err)
+		slog.Error("Sovereign Purifier failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func (h *SovereignHydrator) Run(check, force bool, only string) error {
+func (h *SovereignPurifier) Run(check, force bool, only string) error {
+	if h.testBuild {
+		defer h.cleanLocalWorkstationExecutables()
+	}
 	h.force = force
 	slog.Info("Sovereign Hydration Ingest Starting", "check_mode", check, "force_mode", force)
 
@@ -314,6 +318,30 @@ func (h *SovereignHydrator) Run(check, force bool, only string) error {
 		return fmt.Errorf("failed to parse SBOM manifest: %w", err)
 	}
 
+	// Down-ladder Hydration: Scan for LADDER_DOWN workspaces and load their requirements
+	var reqArtifacts []string
+	for _, rec := range records {
+		if rec.Category == "LADDER_DOWN" {
+			wsName := rec.Name
+			wsDir := filepath.Join(`C:\aCogSpaceSeed\00flow`, wsName)
+			if _, statErr := os.Stat(wsDir); statErr != nil {
+				wsDir = filepath.Join(`C:\aCogSpaceSeed\00xper`, wsName)
+			}
+			if _, statErr := os.Stat(wsDir); statErr == nil {
+				prologuePath := filepath.Join(wsDir, "00001-workspace-prologue", "workspace-facets.webnf")
+				if facets, pErr := ParseWorkspacePrologue(prologuePath); pErr == nil && facets != nil {
+					slog.Info("Scanned down-ladder prologue requirements", "workspace", wsName, "requirements", facets.RehydrationRequirements)
+					reqArtifacts = append(reqArtifacts, facets.RehydrationRequirements...)
+				}
+			}
+		}
+	}
+
+	reqMap := make(map[string]bool)
+	for _, name := range reqArtifacts {
+		reqMap[name] = true
+	}
+
 	// Filter down selection based on CLI only target
 	var selectedRecords []ArtifactRecord
 	var targets []string
@@ -321,6 +349,9 @@ func (h *SovereignHydrator) Run(check, force bool, only string) error {
 		targets = strings.Split(only, ",")
 	}
 	for _, rec := range records {
+		if rec.Category == "LADDER_DOWN" {
+			continue
+		}
 		if only != "" {
 			found := false
 			for _, t := range targets {
@@ -329,12 +360,13 @@ func (h *SovereignHydrator) Run(check, force bool, only string) error {
 					break
 				}
 			}
-			if !found {
+			if !found && !reqMap[rec.Name] {
 				continue
 			}
 		}
 		selectedRecords = append(selectedRecords, rec)
 	}
+
 
 	// Level 1: Discover topological dependencies and perform dynamic classification
 	bootstrapQueue, massiveQueue, hostCohorts := h.determineExecutionPlan(selectedRecords)
@@ -421,7 +453,7 @@ func (h *SovereignHydrator) Run(check, force bool, only string) error {
 	return nil
 }
 
-func (h *SovereignHydrator) executeExecutionPlan(bootstrapQueue, massiveQueue []ArtifactRecord, hostCohorts map[string][]ArtifactRecord) (map[string]time.Duration, time.Duration, error) {
+func (h *SovereignPurifier) executeExecutionPlan(bootstrapQueue, massiveQueue []ArtifactRecord, hostCohorts map[string][]ArtifactRecord) (map[string]time.Duration, time.Duration, error) {
 	globalStart := time.Now()
 	durations := make(map[string]time.Duration)
 	var mu sync.Mutex
@@ -515,7 +547,7 @@ func (h *SovereignHydrator) executeExecutionPlan(bootstrapQueue, massiveQueue []
 	return durations, time.Since(globalStart), nil
 }
 
-func (h *SovereignHydrator) printABTestReport(records []ArtifactRecord, seqDurations map[string]time.Duration, seqGlobal time.Duration, parDurations map[string]time.Duration, parGlobal time.Duration) {
+func (h *SovereignPurifier) printABTestReport(records []ArtifactRecord, seqDurations map[string]time.Duration, seqGlobal time.Duration, parDurations map[string]time.Duration, parGlobal time.Duration) {
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 85))
 	fmt.Println("                         SOVEREIGN HYDRATOR A/B TEST REPORT")
@@ -561,7 +593,7 @@ func (h *SovereignHydrator) printABTestReport(records []ArtifactRecord, seqDurat
 	fmt.Println()
 }
 
-func (h *SovereignHydrator) hydrateAndSealTarget(rec ArtifactRecord) error {
+func (h *SovereignPurifier) hydrateAndSealTarget(rec ArtifactRecord) error {
 	startTime := time.Now()
 	var downloadCompleteTime time.Time
 	var pruningCompleteTime time.Time
@@ -571,8 +603,18 @@ func (h *SovereignHydrator) hydrateAndSealTarget(rec ArtifactRecord) error {
 	isSourceBuild := (rec.BuildPolicy != "" && rec.BuildPolicy != "BINARY_ONLY")
 
 	dlURL := sourceURL
-	if !isSourceBuild {
+	if !isSourceBuild && dlURL == "" {
 		dlURL = GetDownloadURL(rec.Name, rec.Version)
+	}
+
+	if strings.HasPrefix(dlURL, "npm://") {
+		slog.Info("Resolving NPM package registry URL from manifest declaration...", "name", rec.Name, "url", dlURL)
+		resolvedURL, err := resolveNpmURL(dlURL, rec.Version)
+		if err != nil {
+			return fmt.Errorf("failed to resolve NPM package %q version %q: %w", dlURL, rec.Version, err)
+		}
+		dlURL = resolvedURL
+		slog.Info("Resolved NPM registry target", "package", rec.Name, "tarball", dlURL)
 	}
 
 	if dlURL == "" {
@@ -718,7 +760,26 @@ func (h *SovereignHydrator) hydrateAndSealTarget(rec ArtifactRecord) error {
 		startTime = startTime.Add(time.Since(lockWaitStart))
 
 		// Extract
-		if ext == ".tar.gz" {
+		if rec.BuildPolicy == "NPM_PODMAN" {
+			// Trigger sandboxed NPM installation inside network-isolated Podman
+			slog.Info("Running Podman containerized NPM installation with network isolation...", "package", rec.Name, "tarball", shadowZip)
+			extractedBin, errSandbox := runPodmanSandboxInHydrator(rec.Name, shadowZip, shadowPath)
+			if errSandbox != nil {
+				err = fmt.Errorf("Podman sandbox extraction failed: %w", errSandbox)
+			} else {
+				// Copy/promote the extracted executable to the shadow path
+				targetName := rec.Name
+				if !strings.HasSuffix(targetName, ".exe") {
+					targetName += ".exe"
+				}
+				destBin := filepath.Join(shadowPath, targetName)
+				err = copyFile(extractedBin, destBin)
+			}
+		} else if strings.HasPrefix(dlURL, "https://registry.npmjs.org/") {
+			// Use Go-native stream extractor: parses tarball in-memory, writes ONLY target binary to disk, discarding JS files
+			slog.Info("Running Go-native in-memory stream extraction for NPM package...", "package", rec.Name)
+			err = extractNPMTarballStream(shadowZip, shadowPath, rec.Name)
+		} else if ext == ".tar.gz" {
 			err = h.UnTgz(shadowZip, shadowPath)
 		} else if ext == ".exe" {
 			targetExeName := filepath.Base(destForgePath)
@@ -776,7 +837,7 @@ workspace_harness {
 
 			if _, err := os.Stat(harnessPath); err == nil {
 				slog.Info("Invoking buildHarness to compile external library from source", "name", rec.Name, "harness", harnessPath)
-				_, err = buildHarness(context.Background(), harnessPath, "", true, false, false, h.testBuild)
+				_, _, err = buildHarness(context.Background(), harnessPath, "", true, false, false, h.testBuild, false, nil, nil, false, false)
 				if err != nil {
 					return fmt.Errorf("buildHarness failed for external source %s: %w", rec.Name, err)
 				}
@@ -863,6 +924,10 @@ workspace_harness {
 					if err != nil {
 						return fmt.Errorf("failed to rewrite library imports for %s: %w", entry.Name, err)
 					}
+					err = purifyGoMod(destForgePath)
+					if err != nil {
+						return fmt.Errorf("failed to purify go.mod for %s: %w", entry.Name, err)
+					}
 				}
 				entry.LastChangedUTC = time.Now().UTC().Format(time.RFC3339)
 				registry.SetRegistryEntry(*entry)
@@ -930,7 +995,7 @@ workspace_harness {
 	return err
 }
 
-func (h *SovereignHydrator) SovereignProbe(urlStr string) (uint8, string) {
+func (h *SovereignPurifier) SovereignProbe(urlStr string) (uint8, string) {
 	if strings.Contains(urlStr, "google") || strings.Contains(urlStr, "googleapis.com") {
 		return ProtoH2 | ProtoH3, urlStr
 	}
@@ -983,7 +1048,7 @@ func (h *SovereignHydrator) SovereignProbe(urlStr string) (uint8, string) {
 }
 
 
-func (h *SovereignHydrator) RunSecurityScan(path string, cvePolicy string) error {
+func (h *SovereignPurifier) RunSecurityScan(path string, cvePolicy string) error {
 	// Standardize relative Trivy path discovery
 	_, err := os.Stat(TrivyPath)
 	if err != nil {
@@ -1041,7 +1106,7 @@ func (h *SovereignHydrator) RunSecurityScan(path string, cvePolicy string) error
 	return nil
 }
 
-func (h *SovereignHydrator) ScanLicenseCompliance(path string) error {
+func (h *SovereignPurifier) ScanLicenseCompliance(path string) error {
 	var licenseFound bool
 	var licenseFile string
 
@@ -1095,7 +1160,7 @@ func (h *SovereignHydrator) ScanLicenseCompliance(path string) error {
 }
 
 
-func (h *SovereignHydrator) Unzip(src, dest string) error {
+func (h *SovereignPurifier) Unzip(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
@@ -1134,7 +1199,7 @@ func (h *SovereignHydrator) Unzip(src, dest string) error {
 	return nil
 }
 
-func (h *SovereignHydrator) UnTgz(src, dest string) error {
+func (h *SovereignPurifier) UnTgz(src, dest string) error {
 	f, err := os.Open(src)
 	if err != nil {
 		return err
@@ -1178,7 +1243,7 @@ func (h *SovereignHydrator) UnTgz(src, dest string) error {
 	return nil
 }
 
-func (h *SovereignHydrator) determineExecutionPlan(records []ArtifactRecord) ([]ArtifactRecord, []ArtifactRecord, map[string][]ArtifactRecord) {
+func (h *SovereignPurifier) determineExecutionPlan(records []ArtifactRecord) ([]ArtifactRecord, []ArtifactRecord, map[string][]ArtifactRecord) {
 	var bootstrapCohort []ArtifactRecord
 	var sequentialLargeCohort []ArtifactRecord
 	parallelCohortGroups := make(map[string][]ArtifactRecord)
@@ -1223,7 +1288,7 @@ func (h *SovereignHydrator) determineExecutionPlan(records []ArtifactRecord) ([]
 	return bootstrapCohort, sequentialLargeCohort, parallelCohortGroups
 }
 
-func (h *SovereignHydrator) printExecutionPlan(bootstrap []ArtifactRecord, massive []ArtifactRecord, hosts map[string][]ArtifactRecord) {
+func (h *SovereignPurifier) printExecutionPlan(bootstrap []ArtifactRecord, massive []ArtifactRecord, hosts map[string][]ArtifactRecord) {
 	fmt.Println(strings.Repeat("=", 80))
 	fmt.Println("             SOVEREIGN TWO-TIER SCHEDULER & AUTOSCALING PLAN")
 	fmt.Println(strings.Repeat("=", 80))
@@ -1254,7 +1319,7 @@ func (h *SovereignHydrator) printExecutionPlan(bootstrap []ArtifactRecord, massi
 	fmt.Println(strings.Repeat("=", 80))
 }
 
-func (h *SovereignHydrator) loadExperience(path string) error {
+func (h *SovereignPurifier) loadExperience(path string) error {
 	_, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -1299,7 +1364,7 @@ func (h *SovereignHydrator) loadExperience(path string) error {
 	return nil
 }
 
-func (h *SovereignHydrator) saveExperience(path string) error {
+func (h *SovereignPurifier) saveExperience(path string) error {
 	h.expMutex.Lock()
 	defer h.expMutex.Unlock()
 
@@ -1325,7 +1390,7 @@ func (h *SovereignHydrator) saveExperience(path string) error {
 	return os.WriteFile(path, buf.Bytes(), 0644)
 }
 
-func (h *SovereignHydrator) IterativeDFWalk(root string, walkFn func(path string, info os.FileInfo) (bool, error)) error {
+func (h *SovereignPurifier) IterativeDFWalk(root string, walkFn func(path string, info os.FileInfo) (bool, error)) error {
 	stack := []string{root}
 
 	for len(stack) > 0 {
@@ -1358,7 +1423,7 @@ func (h *SovereignHydrator) IterativeDFWalk(root string, walkFn func(path string
 	return nil
 }
 
-func (h *SovereignHydrator) PruneAndHash(path string, force bool, isBlake3 bool) (string, int64, error) {
+func (h *SovereignPurifier) PruneAndHash(path string, force bool, isBlake3 bool) (string, int64, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return "sha512:missing", 0, err
@@ -1441,7 +1506,7 @@ func (h *SovereignHydrator) PruneAndHash(path string, force bool, isBlake3 bool)
 	return fmt.Sprintf("%s%x", prefix, hasher.Sum(nil)), totalSize, nil
 }
 
-func (h *SovereignHydrator) shouldPrune(path string, info os.FileInfo) (bool, bool) {
+func (h *SovereignPurifier) shouldPrune(path string, info os.FileInfo) (bool, bool) {
 	name := strings.ToLower(info.Name())
 
 	// Special handling to protect Flutter SDK compiler tools and packages
@@ -1496,6 +1561,11 @@ func (h *SovereignHydrator) shouldPrune(path string, info os.FileInfo) (bool, bo
 			return false, false
 		}
 
+		if strings.HasSuffix(name, "_test.go") || strings.Contains(name, "_test.") || 
+			strings.Contains(strings.ReplaceAll(strings.ToLower(path), "\\", "/"), "/testdata/") {
+			return true, false
+		}
+
 		if strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".html") || strings.HasSuffix(name, ".pdf") {
 			return true, false
 		}
@@ -1509,7 +1579,7 @@ func (h *SovereignHydrator) shouldPrune(path string, info os.FileInfo) (bool, bo
 	}
 }
 
-func (h *SovereignHydrator) blake3Hash(filePath string) (string, error) {
+func (h *SovereignPurifier) blake3Hash(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", err
@@ -1724,6 +1794,10 @@ func GetPhysicalPath(name string) string {
 		return `C:\aCogSpaceSeed\00flow\s-forge\93000-external-libraries\memguard`
 	case "wazero":
 		return `C:\aCogSpaceSeed\00flow\s-forge\93000-external-libraries\wazero`
+	case "stripe-go":
+		return `C:\aCogSpaceSeed\00flow\s-forge\93000-external-libraries\stripe-go`
+	case "jules":
+		return `C:\aCogSpaceSeed\00flow\s-forge\94000-external-actors\jules`
 	default:
 		return ""
 	}
@@ -1732,6 +1806,11 @@ func GetPhysicalPath(name string) string {
 // GetDownloadURL maps an artifact name to its remote download URL.
 func GetDownloadURL(name string, version string) string {
 	switch name {
+	case "jules":
+		if version == "" || version == "0.1.42" {
+			version = "0.1.42"
+		}
+		return fmt.Sprintf("https://registry.npmjs.org/@google/jules/-/jules-%s.tgz", version)
 	case "bazel-rules-flutter":
 		if version == "" {
 			version = "0.1.0"
@@ -1877,6 +1956,11 @@ func GetDownloadURL(name string, version string) string {
 			version = "1.7.0"
 		}
 		return fmt.Sprintf("https://github.com/tetratelabs/wazero/archive/refs/tags/v%s.zip", version)
+	case "stripe-go":
+		if version == "" {
+			version = "86.0.0"
+		}
+		return fmt.Sprintf("https://github.com/stripe/stripe-go/archive/refs/tags/v%s.zip", version)
 	default:
 		return ""
 	}
@@ -1937,7 +2021,7 @@ func rewriteImports(dir string, oldImport string, newImport string) error {
 		if info.IsDir() {
 			return false, nil
 		}
-		if !strings.HasSuffix(info.Name(), ".go") {
+		if !strings.HasSuffix(info.Name(), ".go") && info.Name() != "go.mod" {
 			return false, nil
 		}
 		content, err := os.ReadFile(path)
@@ -1955,7 +2039,32 @@ func rewriteImports(dir string, oldImport string, newImport string) error {
 	})
 }
 
-func (h *SovereignHydrator) updateSBOMHash(path string, name string, newHash string) error {
+func purifyGoMod(dir string) error {
+	goModPath := filepath.Join(dir, "go.mod")
+	content, err := os.ReadFile(goModPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	lines := strings.Split(string(content), "\n")
+	modified := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "go ") {
+			lines[i] = "go 1.26"
+			modified = true
+			break
+		}
+	}
+	if modified {
+		return os.WriteFile(goModPath, []byte(strings.Join(lines, "\n")), 0644)
+	}
+	return nil
+}
+
+func (h *SovereignPurifier) updateSBOMHash(path string, name string, newHash string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -1976,7 +2085,7 @@ func (h *SovereignHydrator) updateSBOMHash(path string, name string, newHash str
 	return os.WriteFile(path, []byte(output), 0644)
 }
 
-func (h *SovereignHydrator) isAuthorizedSource(urlStr string) bool {
+func (h *SovereignPurifier) isAuthorizedSource(urlStr string) bool {
 	parsed, err := url.Parse(urlStr)
 	if err != nil {
 		return false
@@ -1990,6 +2099,7 @@ func (h *SovereignHydrator) isAuthorizedSource(urlStr string) bool {
 		"github.com",
 		"dl.google.com",
 		"storage.googleapis.com",
+		"registry.npmjs.org",
 	}
 	
 	for _, allowed := range allowedHosts {
@@ -2000,7 +2110,7 @@ func (h *SovereignHydrator) isAuthorizedSource(urlStr string) bool {
 	return false
 }
 
-func (h *SovereignHydrator) TidyGoModule(path string) error {
+func (h *SovereignPurifier) TidyGoModule(path string) error {
 	goModPath := filepath.Join(path, "go.mod")
 	if _, err := os.Stat(goModPath); os.IsNotExist(err) {
 		return nil
@@ -2032,7 +2142,7 @@ func (h *SovereignHydrator) TidyGoModule(path string) error {
 	return nil
 }
 
-func (h *SovereignHydrator) WriteReport(force bool, start time.Time, finish time.Time, elapsed time.Duration) error {
+func (h *SovereignPurifier) WriteReport(force bool, start time.Time, finish time.Time, elapsed time.Duration) error {
 	var webnf bytes.Buffer
 	webnf.WriteString("HYDRATION-REPORT-V1\n")
 	webnf.WriteString(time.Now().Format("2006-01-02T15:04:05-07:00") + "\n")
@@ -2504,3 +2614,190 @@ func hollowDirectory(dir string) error {
 	}
 	return nil
 }
+
+func (h *SovereignPurifier) cleanLocalWorkstationExecutables() {
+	slog.Info("Cleaning up local workstation test-build executables...")
+	hydrationDir := `C:\aCogSpaceSeed\00flow\s-hydration`
+	categories := []string{
+		"91000-external-executables",
+		"92000-external-toolchains",
+		"93000-external-libraries",
+		"94000-external-actors",
+		"95000-authority",
+		"95100-rehydration-seed",
+		"96000-internal-executables",
+		"96200-internal-adapters",
+		"97000-internal-toolchains",
+		"98000-internal-libraries",
+		"99000-internal-actors",
+	}
+
+	for _, cat := range categories {
+		dir := filepath.Join(hydrationDir, cat)
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
+				ext := strings.ToLower(filepath.Ext(path))
+				if ext == ".exe" || ext == ".dll" || ext == ".pdb" || ext == ".test" || info.Name() == "s-hydration" || info.Name() == "int-rehydrator" {
+					slog.Info("Removing local workstation test artifact", "path", path)
+					_ = os.Remove(path)
+				}
+			}
+			return nil
+		})
+		
+		if files, err := os.ReadDir(dir); err == nil && len(files) == 0 {
+			_ = os.Remove(dir)
+		}
+	}
+	
+	_ = os.Remove(filepath.Join(hydrationDir, "s-hydration.exe"))
+	_ = os.Remove(filepath.Join(hydrationDir, "int-rehydrator.exe"))
+}
+
+func resolveNpmURL(npmURL, version string) (string, error) {
+	pkgName := strings.TrimPrefix(npmURL, "npm://")
+	if version == "" {
+		version = "latest"
+	}
+	url := fmt.Sprintf("https://registry.npmjs.org/%s/%s", pkgName, version)
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to contact registry: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("registry returned status %d", resp.StatusCode)
+	}
+	var meta struct {
+		Dist struct {
+			Tarball string `json:"tarball"`
+		} `json:"dist"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	return meta.Dist.Tarball, nil
+}
+
+func extractNPMTarballStream(tarballPath, outputDir, pkgName string) error {
+	file, err := os.Open(tarballPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	var foundBinary string
+
+	targetName := pkgName
+	if parts := strings.Split(targetName, "/"); len(parts) > 0 {
+		targetName = parts[len(parts)-1]
+	}
+	targetName = strings.ReplaceAll(targetName, "-cli", "")
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		name := header.Name
+		if header.Typeflag == tar.TypeReg {
+			isExe := strings.HasSuffix(name, ".exe") || strings.Contains(name, "/bin/") || strings.HasSuffix(name, targetName)
+			if isExe {
+				cleanName := filepath.Base(name)
+				if !strings.HasSuffix(cleanName, ".exe") {
+					cleanName += ".exe"
+				}
+				if err := os.MkdirAll(outputDir, 0755); err != nil {
+					return err
+				}
+				targetPath := filepath.Join(outputDir, cleanName)
+				out, err := os.Create(targetPath)
+				if err != nil {
+					return err
+				}
+				if _, err := io.Copy(out, tr); err != nil {
+					out.Close()
+					return err
+				}
+				out.Close()
+				foundBinary = targetPath
+			}
+		}
+	}
+	if foundBinary == "" {
+		return fmt.Errorf("no native executable found in npm tarball stream")
+	}
+	return nil
+}
+
+func runPodmanSandboxInHydrator(pkg, tarballPath, scratchDir string) (string, error) {
+	containerfilePath := filepath.Join(scratchDir, "Containerfile")
+	containerfileContent := `FROM node:20-alpine
+WORKDIR /app
+COPY package.tgz /app/package.tgz
+RUN npm install -g /app/package.tgz --unsafe-perm
+`
+
+	if err := os.WriteFile(containerfilePath, []byte(containerfileContent), 0644); err != nil {
+		return "", fmt.Errorf("failed to write Containerfile: %w", err)
+	}
+
+	pkgTgzPath := filepath.Join(scratchDir, "package.tgz")
+	if err := copyFile(tarballPath, pkgTgzPath); err != nil {
+		return "", fmt.Errorf("failed to copy tarball to sandbox workdir: %w", err)
+	}
+
+	slog.Info("Building Podman sandbox image...", "dir", scratchDir)
+	cmdBuild := exec.Command("podman", "build", "-t", "npm-sandbox-image", "-f", "Containerfile", ".")
+	cmdBuild.Dir = scratchDir
+	if err := cmdBuild.Run(); err != nil {
+		return "", fmt.Errorf("failed to build Podman image: %w", err)
+	}
+
+	slog.Info("Running Podman container with --network none to extract executable...")
+	targetName := pkg
+	if parts := strings.Split(targetName, "/"); len(parts) > 0 {
+		targetName = parts[len(parts)-1]
+	}
+	targetName = strings.ReplaceAll(targetName, "-cli", "")
+
+	cmdRun := exec.Command("podman", "run", "--rm", "--network", "none",
+		"-v", scratchDir+":/output",
+		"npm-sandbox-image",
+		"sh", "-c", fmt.Sprintf("cp /usr/local/bin/%s* /output/%s.exe || cp /usr/local/lib/node_modules/%s/bin/* /output/%s.exe || cp /usr/local/bin/jules* /output/jules.exe || true", targetName, targetName, targetName, targetName))
+	
+	if err := cmdRun.Run(); err != nil {
+		return "", fmt.Errorf("failed to run Podman container: %w", err)
+	}
+
+	expectedBinary := filepath.Join(scratchDir, targetName+".exe")
+	if _, err := os.Stat(expectedBinary); err == nil {
+		return expectedBinary, nil
+	}
+
+	fallbackBinary := filepath.Join(scratchDir, "jules.exe")
+	if _, err := os.Stat(fallbackBinary); err == nil {
+		return fallbackBinary, nil
+	}
+
+	return "", fmt.Errorf("no executable found in sandbox output directory")
+}
+
+

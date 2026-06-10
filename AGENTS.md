@@ -10,6 +10,9 @@ This workspace houses the NATVS Hydration Engine, which orchestrates Dynamic bui
   - The registry (`hydratedregistry.go`) functions as a routing table holding stable, version-agnostic names mapped to locations.
   - The SBOM/Manifest (`sbom.external_artifact.webnf`) serves as the audit log containing versions, dates, and verification hash history.
   - Stand-alone synchronization/repair (`hydrator -sync`) keeps the registry aligned using a two-phase filesystem veracity scanner (Phase A: Scan & Add; Phase B: Verify & Delete).
+- **"If We Gotta NPM, Here is Our Protection" Mandate:** To fetch external toolchains delivered via NPM (such as the `jules` CLI) without running npm/node on the host workstation:
+  - **Host-Side Tarball Parsing:** Standard packages are downloaded as tarballs over static HTTP GET, and the executables are extracted directly using Go's `archive/tar` stream processing (discarding all Javascript/install scripts).
+  - **Network-Isolated Podman Sandbox:** When JS compilation/resolution is required, the build executes inside a transient, networkless (`--network none`), read-only Podman container. The compiled binary is extracted from the container, and the sandbox is destroyed immediately. No Node.js runtimes or npm commands are permitted to run directly on the host machine.
 
 ## SACP / qAPC raw QUIC Core Integration
 This workspace holds the fully implemented, compiled, and verified SACP / qAPC raw QUIC networking core:
