@@ -151,19 +151,21 @@ type IngressReportRecord struct {
 
 // SovereignPurifier represents the dynamic self-learning engine.
 type SovereignPurifier struct {
-	downloader    *quicdl.Downloader
-	ua            string
-	experience    map[string]ExperienceRecord
-	expMutex      sync.Mutex
-	ioMutex       sync.Mutex // Serializes all heavy CPU/IO actions (Unzip, Scan, Prune, Promote)
-	progress      bool
-	sequential    bool
-	abtest        bool
-	testBuild     bool
-	updateHashes  bool
-	force         bool
-	reportRecords []IngressReportRecord
-	reportMutex   sync.Mutex
+	downloader      *quicdl.Downloader
+	ua              string
+	experience      map[string]ExperienceRecord
+	expMutex        sync.Mutex
+	ioMutex         sync.Mutex // Serializes all heavy CPU/IO actions (Unzip, Scan, Prune, Promote)
+	progress        bool
+	sequential      bool
+	abtest          bool
+	testBuild       bool
+	updateHashes    bool
+	force           bool
+	reportRecords   []IngressReportRecord
+	reportMutex     sync.Mutex
+	activeArtifacts map[string]time.Time
+	activeMutex     sync.Mutex
 }
 
 func NewSovereignPurifier() *SovereignPurifier {
@@ -171,9 +173,37 @@ func NewSovereignPurifier() *SovereignPurifier {
 	d := quicdl.NewDownloader()
 	d.SetUserAgent(ua)
 	return &SovereignPurifier{
-		downloader: d,
-		ua:         ua,
-		experience: make(map[string]ExperienceRecord),
+		downloader:      d,
+		ua:              ua,
+		experience:      make(map[string]ExperienceRecord),
+		activeArtifacts: make(map[string]time.Time),
+	}
+}
+
+func (h *SovereignPurifier) markActive(name string, inProgress bool) {
+	h.activeMutex.Lock()
+	if h.activeArtifacts == nil {
+		h.activeArtifacts = make(map[string]time.Time)
+	}
+	if inProgress {
+		h.activeArtifacts[name] = time.Now()
+	} else {
+		delete(h.activeArtifacts, name)
+	}
+	type ActiveItem struct {
+		Name      string    `json:"name"`
+		StartedAt time.Time `json:"started_at"`
+	}
+	var list []ActiveItem
+	for k, v := range h.activeArtifacts {
+		list = append(list, ActiveItem{Name: k, StartedAt: v})
+	}
+	h.activeMutex.Unlock()
+
+	data, err := json.MarshalIndent(list, "", "  ")
+	if err == nil {
+		pulseDir := `C:\aCogSpaceSeed\00flow\s-hydration\03000-pulse-progress`
+		_ = os.WriteFile(filepath.Join(pulseDir, "active.json"), data, 0644)
 	}
 }
 
@@ -594,6 +624,10 @@ func (h *SovereignPurifier) printABTestReport(records []ArtifactRecord, seqDurat
 }
 
 func (h *SovereignPurifier) hydrateAndSealTarget(rec ArtifactRecord) error {
+	slog.Info("Starting hydration of target", "name", rec.Name, "version", rec.Version)
+	h.markActive(rec.Name, true)
+	defer h.markActive(rec.Name, false)
+
 	startTime := time.Now()
 	var downloadCompleteTime time.Time
 	var pruningCompleteTime time.Time

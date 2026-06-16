@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"sov.fleet/s-hydration/98000-internal-libraries/quicdl"
+	"sov.fleet/quicdl"
 )
 
 func TestDetermineExecutionPlan(t *testing.T) {
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 
 	// Mock dynamic experience size
 	h.GetExperience()["custom-massive"] = ExperienceRecord{
@@ -28,7 +28,7 @@ func TestDetermineExecutionPlan(t *testing.T) {
 		{Name: "flutter-sdk-firehorse", OriginalSize: 1932735283},    // Phase 2 (1.8 GB)
 		{Name: "custom-massive", OriginalSize: 50 * 1024},            // Phase 2 via experience
 		{Name: "bazel-rules-go", OriginalSize: 10 * 1024 * 1024},     // Phase 3 github.com
-		{Name: "bazelisk", OriginalSize: 15 * 1024 * 1024},           // Phase 3 github.com
+		{Name: "bazel", OriginalSize: 15 * 1024 * 1024},           // Phase 3 github.com
 		{Name: "step-ca", OriginalSize: 50 * 1024},                   // Phase 3 small local placeholder
 	}
 
@@ -131,7 +131,7 @@ func TestParseSBOMRegistry(t *testing.T) {
 2026-05-18T13:30:34-04:00
 AAIF-GreenTea-Rehydrator-v2.0
 # VERACITY-SEAL: mock-seal
-trivy|0.70.0||sha512:trivyhash|212653891|212653891|2026-05-18T13:30:38-04:00
+trivy|0.70.0||sha512:trivyhash|212653891|212653891|2026-05-18T13:30:38-04:00||
 `
 	_, _ = tmpFile.WriteString(mockData)
 	tmpFile.Close()
@@ -155,7 +155,7 @@ trivy|0.70.0||sha512:trivyhash|212653891|212653891|2026-05-18T13:30:38-04:00
 }
 
 func TestExperienceRegistryLoadSave(t *testing.T) {
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 
 	tmpDir, err := os.MkdirTemp("", "mock-exp-*")
 	if err != nil {
@@ -179,7 +179,7 @@ func TestExperienceRegistryLoadSave(t *testing.T) {
 	}
 
 	// Load into a new hydrator
-	h2 := NewSovereignHydrator()
+	h2 := NewSovereignPurifier()
 	err = h2.LoadExperience(expPath)
 	if err != nil {
 		t.Fatalf("Load experience failed: %v", err)
@@ -196,7 +196,7 @@ func TestExperienceRegistryLoadSave(t *testing.T) {
 }
 
 func TestIterativeDFWalkAndMetabolicPruning(t *testing.T) {
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 
 	tmpDir, err := os.MkdirTemp("", "walk-test-*")
 	if err != nil {
@@ -256,7 +256,7 @@ func TestIterativeDFWalkAndMetabolicPruning(t *testing.T) {
 }
 
 func TestSovereignProbeAndAltSvc(t *testing.T) {
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 
 	// Probe fallback logic test
 	proto, finalURL := h.SovereignProbe("https://github.com/BLAKE3-team/BLAKE3")
@@ -269,7 +269,7 @@ func TestSovereignProbeAndAltSvc(t *testing.T) {
 }
 
 func TestSovereignABTestCampaign(t *testing.T) {
-	h := NewSovereignHydrator()
+	h := NewSovereignPurifier()
 	h.SetABTest(true)
 	h.SetSequential(false)
 
@@ -363,7 +363,7 @@ func TestParseSBOMRegistryWithSourceAndBuildPolicy(t *testing.T) {
 2026-05-18T13:30:34-04:00
 AAIF-GreenTea-Rehydrator-v2.0
 # VERACITY-SEAL: mock-seal
-blake3|1.5.0|sha512:zip|sha512:binary|124667|124667|2026-05-18T13:30:38-04:00|https://github.com/zeebo/blake3/archive/refs/tags/v0.2.4.zip|GO_NATIVE
+blake3|1.5.0|sha512:zip|sha512:binary|124667|124667|2026-05-18T13:30:38-04:00|LIBRARY|https://github.com/zeebo/blake3/archive/refs/tags/v0.2.4.zip|GO_NATIVE
 `
 	_, _ = tmpFile.WriteString(mockData)
 	tmpFile.Close()
@@ -385,4 +385,45 @@ blake3|1.5.0|sha512:zip|sha512:binary|124667|124667|2026-05-18T13:30:38-04:00|ht
 		t.Errorf("Mismatch in parsed source URL or build policy: %+v", r)
 	}
 }
+
+func TestParseWorkspacePrologueTest(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "workspace-facets-*.webnf")
+	if err != nil {
+		t.Fatalf("Failed to create temp prologue: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	mockData := `name: "test-workspace"
+classification: "test"
+read_only: true
+build_enabled: false
+harness_path: "71000-build-harness/workspace.harness"
+cluster_membership: ["test_cluster"]
+rehydration_requirements: ["gitleaks", "opentofu"]
+`
+	_, _ = tmpFile.WriteString(mockData)
+	tmpFile.Close()
+
+	facets, err := ParseWorkspacePrologue(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("ParseWorkspacePrologue failed: %v", err)
+	}
+
+	if facets.ReadOnly != true {
+		t.Errorf("Expected ReadOnly true, got false")
+	}
+	if facets.BuildEnabled != false {
+		t.Errorf("Expected BuildEnabled false, got true")
+	}
+	if facets.HarnessPath != "71000-build-harness/workspace.harness" {
+		t.Errorf("Expected HarnessPath '71000-build-harness/workspace.harness', got %q", facets.HarnessPath)
+	}
+	if len(facets.Clusters) != 1 || facets.Clusters[0] != "test_cluster" {
+		t.Errorf("Expected Cluster membership ['test_cluster'], got %v", facets.Clusters)
+	}
+	if len(facets.RehydrationRequirements) != 2 || facets.RehydrationRequirements[0] != "gitleaks" || facets.RehydrationRequirements[1] != "opentofu" {
+		t.Errorf("Expected RehydrationRequirements ['gitleaks', 'opentofu'], got %v", facets.RehydrationRequirements)
+	}
+}
+
 

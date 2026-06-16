@@ -140,3 +140,29 @@ To ensure optimal speed, reproducibility, and local air-gapped security, all bui
 - **Go Programmatic Operations (mod_aligner)**: We enforce Go-native compilation programs (like `mod_aligner`) to resolve, rewrite, and align local workspace modules. This replaces manual LLM editing of `go.mod` files, ensuring $O(1)$ latency and zero semantic drift when compiling Go workspace layouts.
 
 
+## 9. Environment-Based Build Cache Orchestration (cache.go)
+
+To eliminate symbolic folder links/junctions and prevent concurrent build resource conflicts, the build system delegates all cache directory management and environment variable configuration to the `BuildCacheManager` defined in `s-agentbox/agentbox/cache.go`.
+
+### 9.1 Orchestration Workflow
+
+The diagram below details how the isolated caches are setup, resolved, and injected into Go, Dart, Flutter, and Bazel compilers:
+
+```mermaid
+graph TD
+    A["int-rehydrator.exe"] -->|1. Parse workspace.harness| B["Topological Cascade"]
+    B -->|2. Setup isolated dirs| C["agentbox.BuildCacheManager"]
+    C -->|3. Inject Env Variables| D["Subprocess Compilers / Testers"]
+    D -->|Go Build / Test / Tidy| E["GOCACHE & GOPATH & GOMODCACHE"]
+    D -->|Bazel Build| F["BAZEL_OUTPUT_BASE"]
+    D -->|Dart / Flutter| G["PUB_CACHE"]
+    E -->|Redirect to conformed cache space| H["00flow/s-hydrationcache/c8900-build-cache"]
+```
+
+### 9.2 Cache Isolation Matrix
+* **Go Compiler (`GOCACHE` / `GOPATH`):** Creates temporary, workspace-isolated cache directories under `c0990-ephemeral-scratch/build-caches/<workspace-name>` to prevent lock collisions during concurrent workspace runs.
+* **Go Module Cache (`GOMODCACHE`):** All third-party Go dependencies are resolved and cached strictly inside `00flow/s-hydrationcache/c8900-build-cache` to ensure complete hermeticity within the workspace and prevent reliance on OS-level home folder caches.
+* **Bazel Compiler (`BAZEL_OUTPUT_BASE`):** Isolates the Bazel compilation user root for each workspace target, ensuring parallel Bazel builds do not pollute or conflict with each other.
+* **Dart/Flutter (`PUB_CACHE`):** Redirects package downloads to localized worktree-specific folders.
+
+

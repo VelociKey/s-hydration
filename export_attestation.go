@@ -7,39 +7,39 @@ import (
 	"time"
 )
 
-func (h *SovereignHydrator) GetExperience() map[string]ExperienceRecord {
+func (h *SovereignPurifier) GetExperience() map[string]ExperienceRecord {
 	return h.experience
 }
 
-func (h *SovereignHydrator) SetExperience(name string, rec ExperienceRecord) {
+func (h *SovereignPurifier) SetExperience(name string, rec ExperienceRecord) {
 	h.experience[name] = rec
 }
 
-func (h *SovereignHydrator) SetABTest(val bool) {
+func (h *SovereignPurifier) SetABTest(val bool) {
 	h.abtest = val
 }
 
-func (h *SovereignHydrator) SetSequential(val bool) {
+func (h *SovereignPurifier) SetSequential(val bool) {
 	h.sequential = val
 }
 
-func (h *SovereignHydrator) DetermineExecutionPlan(records []ArtifactRecord) ([]ArtifactRecord, []ArtifactRecord, map[string][]ArtifactRecord) {
+func (h *SovereignPurifier) DetermineExecutionPlan(records []ArtifactRecord) ([]ArtifactRecord, []ArtifactRecord, map[string][]ArtifactRecord) {
 	return h.determineExecutionPlan(records)
 }
 
-func (h *SovereignHydrator) SaveExperience(path string) error {
+func (h *SovereignPurifier) SaveExperience(path string) error {
 	return h.saveExperience(path)
 }
 
-func (h *SovereignHydrator) LoadExperience(path string) error {
+func (h *SovereignPurifier) LoadExperience(path string) error {
 	return h.loadExperience(path)
 }
 
-func (h *SovereignHydrator) ShouldPrune(path string, info os.FileInfo) (bool, bool) {
+func (h *SovereignPurifier) ShouldPrune(path string, info os.FileInfo) (bool, bool) {
 	return h.shouldPrune(path, info)
 }
 
-func (h *SovereignHydrator) PrintABTestReport(records []ArtifactRecord, seqDurations map[string]time.Duration, totalSeq time.Duration, parDurations map[string]time.Duration, totalPar time.Duration) {
+func (h *SovereignPurifier) PrintABTestReport(records []ArtifactRecord, seqDurations map[string]time.Duration, totalSeq time.Duration, parDurations map[string]time.Duration, totalPar time.Duration) {
 	h.printABTestReport(records, seqDurations, totalSeq, parDurations, totalPar)
 }
 

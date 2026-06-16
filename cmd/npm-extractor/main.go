@@ -46,7 +46,7 @@ func main() {
 	}
 	fmt.Printf("Resolved version: %s\nTarball: %s\n", resolvedVersion, tarballURL)
 
-	scratchDir := `C:\aCogSpaceSeed\c0990-ephemeral-scratch\npm-sandbox`
+	scratchDir := `C:\aCogSpaceSeed\00flow\s-hydrationcache\c0990-ephemeral-scratch\npm-sandbox`
 	if err := os.MkdirAll(scratchDir, 0755); err != nil {
 		fmt.Printf("Failed to create scratch dir: %v\n", err)
 		os.Exit(1)

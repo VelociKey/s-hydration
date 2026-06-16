@@ -3,6 +3,7 @@
 
 workspace_harness {
     name : "s-hydration" ;
+    test_enabled:true;
     targets {
         target {
             mode : DYNAMIC ;
@@ -16,6 +17,13 @@ workspace_harness {
             engine : "go-compiler" ;
             src : "cmd/int-rehydrator" ;
             out : "int-rehydrator" ;
+            category : "TOOLCHAIN" ;
+        }
+        target {
+            mode : DYNAMIC ;
+            engine : "go-compiler" ;
+            src : "cmd/mod-aligner" ;
+            out : "mod-aligner" ;
             category : "TOOLCHAIN" ;
         }
     }

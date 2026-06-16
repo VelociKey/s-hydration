@@ -5,51 +5,51 @@ logical_paths {
     ; =========================================================================
     PLATFORM_CORE_EXTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/s-forge/94000-external-actors" ;
     PLATFORM_CORE_EXTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/s-forge/92000-external-toolchains" ;
-    PLATFORM_CORE_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch" ;
+    PLATFORM_CORE_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch" ;
     PLATFORM_CORE_EXTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/s-forge/94000-external-actors" ;
     PLATFORM_CORE_EXTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/s-forge/93000-external-libraries" ;
-    PLATFORM_CORE_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/external" ;
+    PLATFORM_CORE_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/external" ;
 
     ; Internal: 96000-binaries, 97000-toolchains, 98000-libraries, 99000-actors
     PLATFORM_CORE_INTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/s-forge/12000-system-architecture" ;
     PLATFORM_CORE_INTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/s-forge/92000-external-toolchains/go/bin" ;
-    PLATFORM_CORE_INTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-hydration/c8900-build-cache" ;
+    PLATFORM_CORE_INTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c8900-build-cache" ;
     PLATFORM_CORE_INTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/s-forge/99000-internal-actors" ;
     PLATFORM_CORE_INTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/s-forge/98000-internal-libraries" ;
-    PLATFORM_CORE_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/internal" ;
+    PLATFORM_CORE_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/internal" ;
 
     ; =========================================================================
     ;  2. PLATFORM PRODUCT REALM (sForge -> 95000 - 99999)
     ; =========================================================================
     PLATFORM_PRODUCT_EXTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/s-forge/96000-internal-executables" ;
     PLATFORM_PRODUCT_EXTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/s-forge/97000-internal-toolchains" ;
-    PLATFORM_PRODUCT_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch" ;
+    PLATFORM_PRODUCT_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch" ;
     PLATFORM_PRODUCT_EXTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/s-forge/96200-internal-adapters" ;
     PLATFORM_PRODUCT_EXTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/s-forge/93000-external-libraries" ;
-    PLATFORM_PRODUCT_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/external-products" ;
+    PLATFORM_PRODUCT_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/external-products" ;
 
     PLATFORM_PRODUCT_INTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/s-forge/96000-internal-executables/blueprints" ;
     PLATFORM_PRODUCT_INTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/s-forge/97000-internal-toolchains/platform-custom" ;
     PLATFORM_PRODUCT_INTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-forge/c8900-build-cache" ;
     PLATFORM_PRODUCT_INTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/s-forge/99000-internal-actors" ;
     PLATFORM_PRODUCT_INTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/s-forge/98000-internal-libraries" ;
-    PLATFORM_PRODUCT_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/internal-products" ;
+    PLATFORM_PRODUCT_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/internal-products" ;
 
     ; =========================================================================
     ;  3. LICENSEE CUSTOM REALM (sCauldron -> 95000 - 99999)
     ; =========================================================================
     LICENSEE_CUSTOM_EXTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/sCauldron/96000-internal-executables" ;
     LICENSEE_CUSTOM_EXTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/sCauldron/97000-internal-toolchains" ;
-    LICENSEE_CUSTOM_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch" ;
+    LICENSEE_CUSTOM_EXTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch" ;
     LICENSEE_CUSTOM_EXTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/sCauldron/96200-internal-adapters" ;
     LICENSEE_CUSTOM_EXTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/sCauldron/93000-external-libraries" ;
-    LICENSEE_CUSTOM_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/licensee-external" ;
+    LICENSEE_CUSTOM_EXTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/licensee-external" ;
 
     LICENSEE_CUSTOM_INTERNAL_BLUEPRINT = "C:/aCogSpaceSeed/00flow/sCauldron/96000-internal-executables/blueprints" ;
     LICENSEE_CUSTOM_INTERNAL_TOOLCHAIN = "C:/aCogSpaceSeed/00flow/sCauldron/97000-internal-toolchains/licensee-custom" ;
     LICENSEE_CUSTOM_INTERNAL_EPHEMERAL = "C:/aCogSpaceSeed/00flow/sCauldron/c8900-build-cache" ;
     LICENSEE_CUSTOM_INTERNAL_ACTOR     = "C:/aCogSpaceSeed/00flow/sCauldron/99000-internal-actors" ;
     LICENSEE_CUSTOM_INTERNAL_LIBRARY   = "C:/aCogSpaceSeed/00flow/sCauldron/98000-internal-libraries" ;
-    LICENSEE_CUSTOM_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/c0990-ephemeral-scratch/hydration-cache/licensee-internal" ;
+    LICENSEE_CUSTOM_INTERNAL_PROVISIONAL = "C:/aCogSpaceSeed/00flow/s-hydrationcache/c0990-ephemeral-scratch/hydration-cache/licensee-internal" ;
 }
 
