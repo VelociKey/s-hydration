@@ -19,6 +19,7 @@ import (
 type GoPackage struct {
 	ImportPath string   `json:"ImportPath"`
 	Imports    []string `json:"Imports"`
+	Deps       []string `json:"Deps"`
 }
 
 func parseGoWork(goWorkPath string) ([]string, error) {
@@ -93,6 +94,7 @@ func queryWorkspaceImports(goExe string, wsPath string) ([]string, error) {
 			return nil, err
 		}
 		imports = append(imports, pkg.Imports...)
+		imports = append(imports, pkg.Deps...)
 	}
 
 	uniqueImports := make(map[string]bool)
@@ -191,6 +193,7 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 
 	var jobs []queryJob
 	dependencyMap := make(map[string][]string)
+	packageDependencyMap := make(map[string]map[string][]string)
 	wsProgramsMap := make(map[string]string)
 
 	// Pre-check cache to collect hits and list miss jobs
@@ -215,21 +218,26 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 			// Compute dependencies immediately for hits using prefix lookup
 			var deps []string
 			seenDeps := make(map[string]bool)
+			pkgMap := make(map[string][]string)
 			for _, imp := range imports {
 				imp = strings.ReplaceAll(imp, "\\", "/")
 				parts := strings.Split(imp, "/")
 				for i := len(parts); i > 0; i-- {
 					prefix := strings.Join(parts[:i], "/")
 					if otherWsName, ok := moduleToWsName[prefix]; ok {
-						if otherWsName != wsName && !seenDeps[otherWsName] {
-							seenDeps[otherWsName] = true
-							deps = append(deps, otherWsName)
+						if otherWsName != wsName {
+							if !seenDeps[otherWsName] {
+								seenDeps[otherWsName] = true
+								deps = append(deps, otherWsName)
+							}
+							pkgMap[otherWsName] = append(pkgMap[otherWsName], imp)
 						}
 						break
 					}
 				}
 			}
 			dependencyMap[wsName] = deps
+			packageDependencyMap[wsName] = pkgMap
 
 			// Read programs immediately for hits
 			harnessPath, _, err := resolveWorkspaceHarness(wsAbs)
@@ -303,21 +311,26 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 			// Compute dependencies
 			var deps []string
 			seenDeps := make(map[string]bool)
+			pkgMap := make(map[string][]string)
 			for _, imp := range res.imports {
 				imp = strings.ReplaceAll(imp, "\\", "/")
 				parts := strings.Split(imp, "/")
 				for i := len(parts); i > 0; i-- {
 					prefix := strings.Join(parts[:i], "/")
 					if otherWsName, ok := moduleToWsName[prefix]; ok {
-						if otherWsName != res.job.wsName && !seenDeps[otherWsName] {
-							seenDeps[otherWsName] = true
-							deps = append(deps, otherWsName)
+						if otherWsName != res.job.wsName {
+							if !seenDeps[otherWsName] {
+								seenDeps[otherWsName] = true
+								deps = append(deps, otherWsName)
+							}
+							pkgMap[otherWsName] = append(pkgMap[otherWsName], imp)
 						}
 						break
 					}
 				}
 			}
 			dependencyMap[res.job.wsName] = deps
+			packageDependencyMap[res.job.wsName] = pkgMap
 
 			// Read programs
 			harnessPath, _, err := resolveWorkspaceHarness(res.job.wsAbs)
@@ -358,6 +371,27 @@ func generateDependenciesWebNF(goWorkPath string, goExe string) error {
 	cb.WriteString("}\n")
 	_ = os.MkdirAll(filepath.Dir(cachePath), 0755)
 	_ = os.WriteFile(cachePath, []byte(cb.String()), 0644)
+
+	// Save Package Dependencies Graph
+	pkgDepsPath := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "package_dependencies.webnf")
+	var psb strings.Builder
+	psb.WriteString("; Authoritative Package Dependency Database\n")
+	psb.WriteString("package_dependencies {\n")
+	for ws, pkgMap := range packageDependencyMap {
+		wsKey := strings.ReplaceAll(ws, "-", "_")
+		if len(wsKey) > 0 && (wsKey[0] >= '0' && wsKey[0] <= '9') {
+			wsKey = "ws_" + wsKey
+		}
+		for depWs, pkgs := range pkgMap {
+			depKey := strings.ReplaceAll(depWs, "-", "_")
+			if len(depKey) > 0 && (depKey[0] >= '0' && depKey[0] <= '9') {
+				depKey = "ws_" + depKey
+			}
+			psb.WriteString(fmt.Sprintf("    %s__%s = %q ;\n", wsKey, depKey, strings.Join(pkgs, ",")))
+		}
+	}
+	psb.WriteString("}\n\n")
+	_ = os.WriteFile(pkgDepsPath, []byte(psb.String()), 0644)
 
 	// Build dependencies.webnf
 	var sb strings.Builder

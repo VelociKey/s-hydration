@@ -5,10 +5,10 @@ go 1.26.3
 require (
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	sov.fleet/quic-go v0.0.0 // indirect
 	sov.fleet/s-parallizer v0.0.0 // indirect
 	sov.fleet/s-scorecard v0.0.0-00010101000000-000000000000 // indirect
@@ -35,6 +35,8 @@ replace (
 	sov.fleet/b-root => ../../00flob/b-root
 	sov.fleet/blake3 => ../s-forge/93000-external-libraries/blake3
 	sov.fleet/n-root => ../../00flon/n-root
+	sov.fleet/o-afflume => ../../00floo/o-afflume
+	sov.fleet/o-afflume-realization => ../../00floo/o-afflume-realization
 	sov.fleet/o-bankanchor => ../../00floo/o-bankanchor
 	sov.fleet/o-bankmachine => ../../00floo/o-bankmachine
 	sov.fleet/o-ingestion => ../../00floo/o-ingestion
@@ -55,8 +57,6 @@ replace (
 	sov.fleet/s-animus => ../s-animus
 	sov.fleet/s-assurance => ../s-assurance
 	sov.fleet/s-authorize => ../s-authorize
-	sov.fleet/o-afflume => ../../00floo/o-afflume
-	sov.fleet/o-afflume-realization => ../../00floo/o-afflume-realization
 	sov.fleet/s-cognition => ../../000all/s-cognition
 	sov.fleet/s-distribution => ../s-distribution
 	sov.fleet/s-fab-aides => ../s-fab-aides

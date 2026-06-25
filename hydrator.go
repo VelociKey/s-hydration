@@ -871,7 +871,7 @@ workspace_harness {
 
 			if _, err := os.Stat(harnessPath); err == nil {
 				slog.Info("Invoking buildHarness to compile external library from source", "name", rec.Name, "harness", harnessPath)
-				_, _, err = buildHarness(context.Background(), harnessPath, "", true, false, false, h.testBuild, false, nil, nil, false, false)
+				_, _, err = buildHarness(context.Background(), harnessPath, "", true, false, false, h.testBuild, false, nil, nil, false, false, nil)
 				if err != nil {
 					return fmt.Errorf("buildHarness failed for external source %s: %w", rec.Name, err)
 				}
@@ -1556,7 +1556,8 @@ func (h *SovereignPurifier) shouldPrune(path string, info os.FileInfo) (bool, bo
 
 	if info.IsDir() {
 		metabolicFolders := []string{
-			"test", "tests", "docs", "doc", "examples", "example",
+			"test", "tests", "integrationtests", "integration_test", "integration_tests",
+			"docs", "doc", "examples", "example",
 			"samples", "sample", "site", "tutorial", "tutorials",
 			"website", "benchmarks", "benchmark",
 		}

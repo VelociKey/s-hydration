@@ -80,7 +80,7 @@ type StagedOutput struct {
 	GlobalPath string
 }
 
-func buildHarness(ctx context.Context, harnessPath string, targetName string, force bool, useStaging bool, localOnly bool, testBuild bool, distBuild bool, graph map[string][]string, wsPathMap map[string]string, rollbackOnFailure bool, useBazelTest bool) ([]StagedOutput, bool, error) {
+func buildHarness(ctx context.Context, harnessPath string, targetName string, force bool, useStaging bool, localOnly bool, testBuild bool, distBuild bool, graph map[string][]string, wsPathMap map[string]string, rollbackOnFailure bool, useBazelTest bool, pkgDepsMap map[string]map[string][]string) ([]StagedOutput, bool, error) {
 	contentBytes, err := os.ReadFile(harnessPath)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to read workspace harness %s: %w", harnessPath, err)
@@ -224,7 +224,7 @@ func buildHarness(ctx context.Context, harnessPath string, targetName string, fo
 		if !force {
 			outInfo, err := os.Stat(localPath)
 			if err == nil {
-				newestSrcTime, walkErr := getNewestModTimeWithDeps(wsName, wsPath, graph, wsPathMap)
+				newestSrcTime, walkErr := getNewestModTimeWithDeps(wsName, wsPath, graph, wsPathMap, pkgDepsMap)
 				if walkErr == nil && !newestSrcTime.IsZero() {
 					if outInfo.ModTime().After(newestSrcTime) {
 						slog.Info("SKIPPING target compilation (up to date)", "target", target.SourcePath, "out", localPath)
@@ -957,6 +957,46 @@ func IntRehydratorMain() {
 		os.Exit(1)
 	}
 
+	wsNormalToActual := make(map[string]string)
+	for ws := range wsPathMap {
+		wsNormal := strings.ReplaceAll(ws, "-", "_")
+		if len(wsNormal) > 0 && (wsNormal[0] >= '0' && wsNormal[0] <= '9') {
+			wsNormal = "ws_" + wsNormal
+		}
+		wsNormalToActual[wsNormal] = ws
+	}
+
+	pkgDepsPath := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "package_dependencies.webnf")
+	pkgDepsMap := make(map[string]map[string][]string)
+	if pkgData, err := os.ReadFile(pkgDepsPath); err == nil {
+		irRoot, err := registry.ParseConfigFile(string(pkgData))
+		if err == nil {
+			paths := registry.ExtractLogicalPaths(irRoot)
+			for key, val := range paths {
+				parts := strings.SplitN(key, "__", 2)
+				if len(parts) == 2 {
+					wsActual := wsNormalToActual[parts[0]]
+					depActual := wsNormalToActual[parts[1]]
+					if wsActual != "" && depActual != "" {
+						var pkgs []string
+						if val != "" {
+							for _, p := range strings.Split(val, ",") {
+								p = strings.TrimSpace(p)
+								if p != "" {
+									pkgs = append(pkgs, p)
+								}
+							}
+						}
+						if pkgDepsMap[wsActual] == nil {
+							pkgDepsMap[wsActual] = make(map[string][]string)
+						}
+						pkgDepsMap[wsActual][depActual] = pkgs
+					}
+				}
+			}
+		}
+	}
+
 	startNode := filepath.Base(wsPath)
 
 	downstream := findDownstreamNodes(graph, startNode)
@@ -973,7 +1013,6 @@ func IntRehydratorMain() {
 	ctx := context.Background()
 
 	var allStagedOutputs []StagedOutput
-	dirtyWorkspaces := make(map[string]bool)
 
 	var backupDir string
 	if *rollbackOnFailure {
@@ -984,7 +1023,7 @@ func IntRehydratorMain() {
 		}
 	}
 
-	primaryStaged, compiledAny, err := buildHarness(ctx, absHarnessPath, *targetName, *force, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest)
+	primaryStaged, _, err := buildHarness(ctx, absHarnessPath, *targetName, *force, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest, pkgDepsMap)
 	if err != nil {
 		if *rollbackOnFailure && backupDir != "" {
 			_ = restoreWorkspace(wsPath, backupDir)
@@ -996,19 +1035,9 @@ func IntRehydratorMain() {
 		_ = os.RemoveAll(backupDir)
 	}
 	allStagedOutputs = append(allStagedOutputs, primaryStaged...)
-	if compiledAny {
-		dirtyWorkspaces[startNode] = true
-	}
 
 	for _, ws := range cascadeList {
 		forceCascade := false
-		transDeps := getTransitiveDependencies(graph, ws)
-		for _, dep := range transDeps {
-			if dirtyWorkspaces[dep] {
-				forceCascade = true
-				break
-			}
-		}
 
 		wsAbs, ok := wsPathMap[ws]
 		if !ok {
@@ -1034,7 +1063,7 @@ func IntRehydratorMain() {
 		}
 
 		slog.Info("Executing cascading build for dependent workspace", "workspace", ws, "forced_by_dependency", forceCascade)
-		staged, compiledAny, err := buildHarness(ctx, hPath, "", forceCascade, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest)
+		staged, _, err := buildHarness(ctx, hPath, "", forceCascade, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest, pkgDepsMap)
 		if err != nil {
 			if *rollbackOnFailure && bDir != "" {
 				_ = restoreWorkspace(wsAbs, bDir)
@@ -1052,9 +1081,6 @@ func IntRehydratorMain() {
 			_ = copyDir(wsAbs, successDest)
 		}
 		allStagedOutputs = append(allStagedOutputs, staged...)
-		if compiledAny {
-			dirtyWorkspaces[ws] = true
-		}
 	}
 
 	destName := "s-forge"
@@ -1185,7 +1211,7 @@ func IntRehydratorMain() {
 					}
 					
 					slog.Info("[Distribution] Triggering declarative build of s-distribution target...")
-					staged, _, err := buildHarness(ctx, distHarness, "", true, true, *localOnly, *testBuild, false, graph, wsPathMap, *rollbackOnFailure, *bazelTest)
+					staged, _, err := buildHarness(ctx, distHarness, "", true, true, *localOnly, *testBuild, false, graph, wsPathMap, *rollbackOnFailure, *bazelTest, pkgDepsMap)
 					if err != nil {
 						slog.Error("Failed to build s-distribution wrapper target", "error", err)
 						os.Exit(1)
@@ -1298,7 +1324,7 @@ func getTransitiveDependencies(graph map[string][]string, startNode string) []st
 	return deps
 }
 
-func getNewestModTimeWithDeps(wsName string, wsPath string, graph map[string][]string, wsPathMap map[string]string) (time.Time, error) {
+func getNewestModTimeWithDeps(wsName string, wsPath string, graph map[string][]string, wsPathMap map[string]string, pkgDepsMap map[string]map[string][]string) (time.Time, error) {
 	newest, err := getNewestModTime(wsPath)
 	if err != nil {
 		return time.Time{}, err
@@ -1307,8 +1333,36 @@ func getNewestModTimeWithDeps(wsName string, wsPath string, graph map[string][]s
 	transDeps := getTransitiveDependencies(graph, wsName)
 	for _, dep := range transDeps {
 		if depPath, ok := wsPathMap[dep]; ok {
-			depTime, err := getNewestModTime(depPath)
-			if err == nil && depTime.After(newest) {
+			var depTime time.Time
+			var scanErr error
+
+			if specificPkgs, hasSpecific := pkgDepsMap[wsName][dep]; hasSpecific && len(specificPkgs) > 0 {
+				goModTime, _ := getNewestModTime(filepath.Join(depPath, "go.mod"))
+				depTime = goModTime
+
+				modName, errMod := parseGoModModuleName(filepath.Join(depPath, "go.mod"))
+				for _, pkg := range specificPkgs {
+					if errMod == nil && strings.HasPrefix(pkg, modName) {
+						relPkg := strings.TrimPrefix(pkg, modName)
+						relPkg = strings.TrimPrefix(relPkg, "/")
+						pkgFullDir := filepath.Join(depPath, filepath.FromSlash(relPkg))
+						
+						pkgTime, errPkg := getNewestModTime(pkgFullDir)
+						if errPkg == nil && pkgTime.After(depTime) {
+							depTime = pkgTime
+						}
+					} else {
+						fullTime, _ := getNewestModTime(depPath)
+						if fullTime.After(depTime) {
+							depTime = fullTime
+						}
+					}
+				}
+			} else {
+				depTime, scanErr = getNewestModTime(depPath)
+			}
+			
+			if scanErr == nil && depTime.After(newest) {
 				newest = depTime
 			}
 		}
