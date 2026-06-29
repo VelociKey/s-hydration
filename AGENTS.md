@@ -230,6 +230,11 @@ Our entire software and agent development platform leads with formal grammar, st
 - **GitHub Repository Deletion Protocol:** 
     - To prevent automated script errors or accidental data loss on shared hosting, any deletion or metabolic pruning of GitHub repositories under the **VelociKey** organization must always be executed manually by the developer (via browser or manual CLI deletion). 
     - Agents are strictly prohibited from executing automated repository deletion scripts or API calls against GitHub remotes.
+- **Zero-Trust Taxonomy Enforcement:**
+    - **Anti-Standard Layout Rule**: Agents must NEVER write standard root-level files (such as `README.md`, `LICENSE`, `CONTRIBUTING.md`, or generic `scripts/` folders) that are common in legacy open-source projects.
+    - **Dynamic Creation**: If a document or file is created, it MUST reside strictly inside a taxonomy-correct directory (e.g., `11000-high-level-intent/` for guides, `12000-system-architecture/` for blueprints). If the directory does not exist, the agent must create it lazily on the fly.
+    - **Root Exception List**: Only `go.work`, `go.work.sum`, `AGENTS.md`, `.gitroot`, and `.gitignore` are authorized to exist at the workspace roots.
+
 
 ## 2. Core Agentic Protocols
 
