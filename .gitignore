@@ -9,6 +9,9 @@
 !/86sref/.gitkeep
 /00aaif/*
 !/00aaif/.gitkeep
+/00xper/*
+!/00xper/.gitkeep
+
 
 # Other managed directories
 /.agents/
@@ -25,3 +28,32 @@
 # - AGENTS.md
 # - .gitroot
 # - .gitignore
+
+/99cbox/*
+!/99cbox/.gitkeep
+
+/99cogt/*
+!/99cogt/.gitkeep
+
+
+/13reng/*
+!/13reng/.gitkeep
+
+/50cove/*
+!/50cove/.gitkeep
+
+/51slam/*
+!/51slam/.gitkeep
+
+/00floo/*
+!/00floo/.gitkeep
+
+/00flob/*
+!/00flob/.gitkeep
+
+/00flon/*
+!/00flon/.gitkeep
+
+# Distribution/packaging directories
+/.nvelwraith/
+
