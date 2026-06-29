@@ -1,13 +1,13 @@
-# Implementation Plan: AAIF Migration to QUIC+CODED & Material View 4
+# Implementation Plan: AAIF Migration to QUIC+CODEC & Material View 4
 
-This plan outlines the migration of the Agent Architecture & Integration Framework (AAIF) from standard A2A (Protobuf/gRPC) to a sovereign, grammar-based stack using QUIC and weBNF-defined CODED protocols, with a specialized Flutter/Go hybrid UI architecture.
+This plan outlines the migration of the Agent Architecture & Integration Framework (AAIF) from standard A2A (Protobuf/gRPC) to a sovereign, grammar-based stack using QUIC and weBNF-defined CODEC protocols, with a specialized Flutter/Go hybrid UI architecture.
 
 ## 1. Architectural Shift: "The Sovereign Stack"
 
 | Component | Legacy (A2A) | Sovereign (AAIF 2.0) |
 | :--- | :--- | :--- |
 | **Networking** | TCP / gRPC (A2A v1.0) | **raw QUIC (quic-go)** |
-| **Serialization** | Protobuf / Structs (A2A v1.0) | **CODED / A2UI Blueprints** (weBNF) |
+| **Serialization** | Protobuf / Structs (A2A v1.0) | **CODEC / A2UI Blueprints** (weBNF) |
 | **Logic Layer** | Dart / Go (Mixed) | **Go 1.26 ("Green Tea")** (`wasip3`) |
 | **View Layer** | Flutter (React-style) | **Flutter 3.41 ("Fire Horse")** (MV4) |
 | **Orchestration** | Service Mesh | NATVS Lifecycle |
@@ -20,8 +20,8 @@ AAIF 2.0 is defined as a machine-executable grammar first. English descriptions 
 
 Add foundational specifications to `000all/s-cognition`.
 
-### 2.1. CODED Protocol Definition
-- **Location**: `43000-grammar-transports/CODED-spec.md`
+### 2.1. CODEC Protocol Definition
+- **Location**: `43000-grammar-transports/CODEC-spec.md`
 - **Objective**: Define the binary format derived directly from weBNF grammars.
 - **Key Feature**: Zero-overhead parsing where the grammar *is* the schema, eliminating the need for separate code generation steps like `protoc`.
 
@@ -35,8 +35,8 @@ Add foundational specifications to `000all/s-cognition`.
 
 ## 3. Phase 2: Toolchain Implementation (s-latentlingua & s-forge)
 
-### 3.1. Foundational CODED Grammar
-- Create `CODED.webnf` in `s-latentlingua`.
+### 3.1. Foundational CODEC Grammar
+- Create `CODEC.webnf` in `s-latentlingua`.
 - This grammar will define the "primitive types" and "message structures" for all agentic communication.
 
 ### 3.2. Go-to-Dart "Surface" Bridge
@@ -49,7 +49,7 @@ Add foundational specifications to `000all/s-cognition`.
 - Handshake via QUIC, exchanging weBNF capabilities.
 
 ### 4.2. Assimilation (A)
-- Ingesting context via CODED-serialized streams.
+- Ingesting context via CODEC-serialized streams.
 
 ### 4.3. Transformation (T)
 - Go-based processing of the assimilated context.
@@ -62,9 +62,9 @@ All migration steps must be validated against the formal grammars. Conformance s
 
 ## 5. Next Steps
 
-1. [ ] Create the `CODED` specification draft in `s-cognition`.
-2. [ ] Initialize `00aaif/standards` with the new protocol markers.
-3. [ ] Prototype a simple "Counter" or "Hello" app using Go-Logic -> CODED -> Flutter MV4 Surface.
+1. [x] Create the `CODEC` specification draft in `s-cognition`.
+2. [x] Initialize `00aaif/standards` with the new protocol markers.
+3. [x] Prototype a simple "Counter" or "Hello" app using Go-Logic -> CODEC -> Flutter MV4 Surface.
 
 ---
 > [!IMPORTANT]

@@ -35,9 +35,7 @@ use (
 	./00flow/s-emulator-stripetax
 	./00flow/s-fab-aides
 	./00flow/s-forge
-	./00flow/s-forge/93000-external-libraries/aesgcm
 	./00flow/s-forge/93000-external-libraries/blake3
-	./00flow/s-forge/93000-external-libraries/mlkem
 	./00flow/s-forge/93000-external-libraries/qpack
 	./00flow/s-forge/93000-external-libraries/quic-go
 	./00flow/s-forge/93000-external-libraries/stripe-go
@@ -49,6 +47,7 @@ use (
 	./00flow/s-ingestion
 	./00flow/s-introspection
 	./00flow/s-latentlingua
+	./00flow/s-liveauthentication
 	./00flow/s-logiclibrary
 	./00flow/s-mcp
 	./00flow/s-mcp-githubtrimmed
@@ -74,7 +73,6 @@ use (
 	./00xper/x-emulator-wrappers
 	./00xper/x-emulatorstudio
 	./00xper/x-gose
-	./00flow/s-liveauthentication
 	./00xper/x-mcp-proxy
 	./00xper/x-meter
 	./00xper/x-storm
