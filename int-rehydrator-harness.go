@@ -1,6 +1,7 @@
 package hydration
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -269,7 +270,16 @@ func buildHarness(ctx context.Context, harnessPath string, targetName string, fo
 				return nil, false, fmt.Errorf("bazel test compiler not found at %s", bazelExe)
 			}
 			bazelOut := bcm.GetEnvVars(harness.Name)["BAZEL_OUTPUT_BASE"]
-			cmd = exec.Command(bazelExe, "--output_user_root="+bazelOut, "test", "--symlink_prefix=/", "--color=no", "//...")
+
+			targets := computeBazelTestTargets(wsPath, bazelExe, bazelOut)
+			if len(targets) == 0 {
+				slog.Info("No dependent tests found for modified packages. Skipping verification tests.", "workspace", harness.Name)
+				return stagedOutputs, compiledAny, nil
+			}
+
+			slog.Info("Executing targeted verification tests via Bazel", "workspace", harness.Name, "targets", targets)
+			args := append([]string{"--output_user_root=" + bazelOut, "test", "--symlink_prefix=/", "--color=no"}, targets...)
+			cmd = exec.Command(bazelExe, args...)
 			cmd.Dir = wsPath
 			cmd.Env = os.Environ()
 			for k, v := range bcm.GetEnvVars(harness.Name) {
@@ -382,4 +392,78 @@ func getNewestModTimeWithDeps(wsName string, wsPath string, graph map[string][]s
 		}
 	}
 	return newest, nil
+}
+
+func computeBazelTestTargets(wsPath string, bazelExe string, bazelOut string) []string {
+	cmdGit := exec.Command("git", "status", "--porcelain")
+	cmdGit.Dir = wsPath
+	var gitOut bytes.Buffer
+	cmdGit.Stdout = &gitOut
+	if err := cmdGit.Run(); err != nil {
+		return []string{"//..."}
+	}
+
+	modifiedPkgs := make(map[string]bool)
+	lines := strings.Split(gitOut.String(), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) < 4 {
+			continue
+		}
+		filePath := line[3:]
+		dir := filepath.Dir(filePath)
+		dir = strings.ReplaceAll(dir, "\\", "/")
+		if dir == "." {
+			dir = ""
+		}
+		curr := dir
+		for {
+			if _, err := os.Stat(filepath.Join(wsPath, curr, "BUILD")); err == nil {
+				modifiedPkgs["//"+curr] = true
+				break
+			}
+			if _, err := os.Stat(filepath.Join(wsPath, curr, "BUILD.bazel")); err == nil {
+				modifiedPkgs["//"+curr] = true
+				break
+			}
+			if curr == "" || curr == "." {
+				break
+			}
+			idx := strings.LastIndex(curr, "/")
+			if idx == -1 {
+				curr = ""
+			} else {
+				curr = curr[:idx]
+			}
+		}
+	}
+
+	if len(modifiedPkgs) == 0 {
+		return []string{"//..."}
+	}
+
+	var pkgList []string
+	for pkg := range modifiedPkgs {
+		pkgList = append(pkgList, fmt.Sprintf("rdeps(//..., %s)", pkg))
+	}
+	queryExpr := fmt.Sprintf("kind(test, %s)", strings.Join(pkgList, " + "))
+
+	cmdQuery := exec.Command(bazelExe, "--output_user_root="+bazelOut, "query", queryExpr)
+	cmdQuery.Dir = wsPath
+	var queryOut bytes.Buffer
+	cmdQuery.Stdout = &queryOut
+	if err := cmdQuery.Run(); err != nil {
+		return []string{"//..."}
+	}
+
+	var targets []string
+	scanner := bufio.NewScanner(&queryOut)
+	for scanner.Scan() {
+		target := strings.TrimSpace(scanner.Text())
+		if target != "" {
+			targets = append(targets, target)
+		}
+	}
+
+	return targets
 }
