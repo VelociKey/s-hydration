@@ -422,17 +422,20 @@ func loadDependencyGraph(depWebnfPath string) (map[string][]string, error) {
 		return nil, fmt.Errorf("failed to parse dependencies.webnf: %w", err)
 	}
 
-	var depBlock *ir.Node
-	for _, child := range irRoot.Children {
-		if child.GetAttributeString("name") == "dependencies" {
-			depBlock = child
-			break
-		}
-	}
-
 	graph := make(map[string][]string)
-	if depBlock != nil {
-		for _, child := range depBlock.Children {
+
+	parseBlock := func(blockName string) {
+		var block *ir.Node
+		for _, child := range irRoot.Children {
+			if child.GetAttributeString("name") == blockName {
+				block = child
+				break
+			}
+		}
+		if block == nil {
+			return
+		}
+		for _, child := range block.Children {
 			if child.Type == ir.NodeAttribute {
 				wsName := child.GetAttributeString("name")
 				wsName = strings.ReplaceAll(wsName, "_", "-")
@@ -459,10 +462,14 @@ func loadDependencyGraph(depWebnfPath string) (map[string][]string, error) {
 						}
 					}
 				}
-				graph[wsName] = deps
+				graph[wsName] = append(graph[wsName], deps...)
 			}
 		}
 	}
+
+	parseBlock("dependencies")
+	parseBlock("dart_packages")
+
 	return graph, nil
 }
 

@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"sov.fleet/s-hydration/400-registry"
+	qdag "sov.fleet/s-qdag/81000-active-source/pkg/qdag"
 )
 
 func IntRehydratorMain() {
@@ -182,48 +184,115 @@ func IntRehydratorMain() {
 	}
 	allStagedOutputs = append(allStagedOutputs, primaryStaged...)
 
+	// 1. Build s-qdag DAG for the cascadeList
+	d := qdag.NewDAG[struct{}]()
 	for _, ws := range cascadeList {
-		forceCascade := false
-		wsAbs, ok := wsPathMap[ws]
-		if !ok {
-			slog.Warn("Downstream workspace not found in map", "workspace", ws)
-			continue
-		}
-
-		hPath, _, _ := resolveWorkspaceHarness(wsAbs)
-		if _, err := os.Stat(hPath); os.IsNotExist(err) {
-			slog.Warn("No harness found for downstream workspace, skipping", "workspace", ws)
-			continue
-		}
-
-		var bDir string
-		if *rollbackOnFailure {
-			var berr error
-			bDir, berr = backupWorkspace(wsAbs)
-			if berr != nil {
-				slog.Warn("Failed to create workspace backup", "workspace", ws, "error", berr)
+		d.AddNode(ws, struct{}{})
+	}
+	for _, ws := range cascadeList {
+		if deps, ok := graph[ws]; ok {
+			for _, dep := range deps {
+				// Only add edges between nodes in cascadeList
+				if _, ok := d.Nodes.Load(dep); ok && dep != ws {
+					_ = d.AddEdge(dep, ws, nil)
+				}
 			}
 		}
+	}
 
-		slog.Info("Executing cascading build for dependent workspace", "workspace", ws, "forced_by_dependency", forceCascade)
-		staged, _, err := buildHarness(ctx, hPath, "", forceCascade, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest, pkgDepsMap)
-		if err != nil {
-			if *rollbackOnFailure && bDir != "" {
-				_ = restoreWorkspace(wsAbs, bDir)
+	// 2. Perform concurrent topologically aligned rebuilds
+	wsWinnow := qdag.NewWinnowState()
+	completed := make(map[string]bool)
+	var muCompleted sync.Mutex
+	var muOutputs sync.Mutex
+
+	concurrencyLimit := qdag.AuditWorkstation()
+	sem := make(chan struct{}, concurrencyLimit)
+	var wg sync.WaitGroup
+
+	for {
+		muCompleted.Lock()
+		readyNodes := d.GetReadyNodes(wsWinnow, completed)
+		muCompleted.Unlock()
+
+		if len(readyNodes) == 0 {
+			muCompleted.Lock()
+			doneCount := len(completed)
+			muCompleted.Unlock()
+			if doneCount == len(cascadeList) {
+				break
 			}
-			slog.Error("Cascading build failed", "workspace", ws, "error", err)
+			slog.Error("Circular dependency detected or rehydration deadlock in cascade list")
 			os.Exit(1)
 		}
-		if *rollbackOnFailure && bDir != "" {
-			_ = os.RemoveAll(bDir)
+
+		for _, nodeID := range readyNodes {
+			muCompleted.Lock()
+			completed[nodeID] = false // mark active
+			muCompleted.Unlock()
+
+			wg.Add(1)
+			go func(ws string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				wsAbs, ok := wsPathMap[ws]
+				if !ok {
+					slog.Warn("Downstream workspace not found in map", "workspace", ws)
+					muCompleted.Lock()
+					completed[ws] = true
+					muCompleted.Unlock()
+					return
+				}
+
+				hPath, _, _ := resolveWorkspaceHarness(wsAbs)
+				if _, err := os.Stat(hPath); os.IsNotExist(err) {
+					slog.Warn("No harness found for downstream workspace, skipping", "workspace", ws)
+					muCompleted.Lock()
+					completed[ws] = true
+					muCompleted.Unlock()
+					return
+				}
+
+				var bDir string
+				if *rollbackOnFailure {
+					var berr error
+					bDir, berr = backupWorkspace(wsAbs)
+					if berr != nil {
+						slog.Warn("Failed to create workspace backup", "workspace", ws, "error", berr)
+					}
+				}
+
+				slog.Info("Executing concurrent cascading build for dependent workspace", "workspace", ws)
+				staged, _, err := buildHarness(ctx, hPath, "", false, true, *localOnly, *testBuild, *distBuild, graph, wsPathMap, *rollbackOnFailure, *bazelTest, pkgDepsMap)
+				if err != nil {
+					if *rollbackOnFailure && bDir != "" {
+						_ = restoreWorkspace(wsAbs, bDir)
+					}
+					slog.Error("Cascading build failed", "workspace", ws, "error", err)
+					os.Exit(1)
+				}
+				if *rollbackOnFailure && bDir != "" {
+					_ = os.RemoveAll(bDir)
+				}
+				if *rollbackOnFailure {
+					successDest := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "last_successful_build", ws)
+					_ = os.RemoveAll(successDest)
+					_ = os.MkdirAll(successDest, 0755)
+					_ = copyDir(wsAbs, successDest)
+				}
+
+				muOutputs.Lock()
+				allStagedOutputs = append(allStagedOutputs, staged...)
+				muOutputs.Unlock()
+
+				muCompleted.Lock()
+				completed[ws] = true
+				muCompleted.Unlock()
+			}(nodeID)
 		}
-		if *rollbackOnFailure {
-			successDest := filepath.Join(projectRoot, "00flow", "s-hydrationcache", "c0990-ephemeral-scratch", "last_successful_build", ws)
-			_ = os.RemoveAll(successDest)
-			_ = os.MkdirAll(successDest, 0755)
-			_ = copyDir(wsAbs, successDest)
-		}
-		allStagedOutputs = append(allStagedOutputs, staged...)
+		wg.Wait()
 	}
 
 	if *rollbackOnFailure {
