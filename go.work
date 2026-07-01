@@ -1,6 +1,7 @@
 go 1.26.4
 
 use (
+	./00xper/x-sovereign-testing/81000-active-source
 	./.nvelwraith/src/sov.nvelwraith/wraithclient
 	./000all/s-cognition
 	./00flon/n-root
@@ -78,6 +79,9 @@ use (
 	./00xper/x-storm
 	./00xper/x-transform-antigravity
 	./00xper/x-wrapstripe
+	./00xper/x-sovereign-client/81000-active-source
+	./00xper/x-sovereign-ingress
+	./00xper/x-sovereign-worker/81000-active-source
 	./51slam/s-riskpapers
 	./99cbox/99cbox-info
 	./99cbox/99cbox-root
@@ -85,4 +89,25 @@ use (
 	./99cogt/c0100-test-cli
 	./99cogt/c0200-test-library
 	./99cogt/c0300-test-ui-backend/backend
+	./86SREF/google-cloud-go
+	./86SREF/google-cloud-go/firestore
+	./86SREF/google-cloud-go/secretmanager
+	./86SREF/google-cloud-go/storage
+	./86SREF/google-cloud-go/pubsub
+	./86SREF/google-cloud-go/bigtable
+	./86SREF/google-cloud-go/spanner
+	./86SREF/firebase-admin-go
+	./86SREF/google-cloud-go/bigquery
+	./86SREF/google-cloud-go/redis
+	./86SREF/google-cloud-go/alloydb
+	./86SREF/google-cloud-go/kms
 )
+
+
+
+
+
+
+
+
+

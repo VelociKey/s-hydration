@@ -68,6 +68,7 @@ Our entire software and agent development platform leads with formal grammar, st
 - **Taxonomy Initialization:** Use `00flow/sSeed/init-workspace.ps1` to initialize or refine any workspace structure.
 - **Reactive Execution:** When running background processes or compilation tasks (like `int-rehydrator.exe`), do not poll or use sleep timers to wait for completion. Simply yield control (call no more tools), and wait for the system's reactive message wakeup to trigger the next action.
 - **Sovereign Root:** The project root is defined by the **`.gitroot`** file. This ensures that Gemini-CLI and Antigravity perceive the entire fleet as a single coordinated entity, regardless of nested `.git` repositories in individual workspaces.
+- **Silo Promotion Policy:** Any promotion of a workspace from an experimental silo (`00xper`) to a production/stable silo (`00flow`) MUST NOT occur automatically, implicitly, or as part of a general workflow chain. Promotions must require explicit, singular user approval as an isolated, independent action.
 - **AAIF Standard:** We strictly follow the AAIF specification. All instructional context is stored in **`AGENTS.md`** files. The CLI is configured to bypass `.git` boundaries and stop only at the `.gitroot` to allow global instructions to flow down.
 - **Semantic Taxonomy:** All workspaces follow a semantically based directory-tree taxonomy:
     - Workspaces under `00xper` represent R&D/Experimental workspaces (prefixed with `x-`, e.g., `x-actors`). Once qualified, they are promoted to `00flow` and renamed with the `s-` prefix.
@@ -215,6 +216,7 @@ Our entire software and agent development platform leads with formal grammar, st
 - **Technology Constraints:** 
     - Never create Node.js code nor use npm packages in any generated code. 
     - All tools, command line helpers, and backends must be implemented in native environments (e.g., Go or Dart). 
+    - Avoid using CGo (C-bindings inside Go) for high-performance execution paths. Keep all core engines, sandbox executors, and transaction coordinators written in pure, native Go to eliminate CGo context-switching latency (~80ns) and maintain cross-platform portability.
     - Prefer the use of a native Go-based Chrome CDP controller when asked to automate or interact with `gemini.google.com` via Chrome.
 - **Go-Native Bash Polyfill Priority:** 
     - To eliminate subprocess start latency (~350ms-500ms on Windows) and ensure maximum execution speed (~4,800x average global speedup), agents and the Antigravity CLI must utilize the Go-native bash command polyfills provided in `sov.fleet/s-fab-aides/81000-active-source/pkg/bash` for all file, folder, and text operations rather than generating, writing, or executing external PowerShell (`pwsh` / `powershell`) scripts. 
