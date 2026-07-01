@@ -144,3 +144,108 @@ local_path_override(
 ```
 
 This structural architecture guarantees that every external rule invocation in Bazel translates into a local-first AST evaluation, blocking all internet leaks during platform compilation.
+
+---
+
+## 4. Concurrent DAG and Targeted Test Slicing
+
+### 4.1 Targeted Bazel Test Slicing (`computeBazelTestTargets`)
+The targeted testing suite identifies and executes only verification test targets impacted by files modified in the active workspace.
+
+```go
+func computeBazelTestTargets(wsPath string, bazelExe string, bazelOut string) []string {
+	if os.Getenv("DISABLE_TARGET_SLICING") == "true" {
+		return []string{"//..."}
+	}
+
+	cmdGit := exec.Command("git", "status", "--porcelain")
+	cmdGit.Dir = wsPath
+	var gitOut bytes.Buffer
+	cmdGit.Stdout = &gitOut
+	if err := cmdGit.Run(); err != nil {
+		return []string{"//..."}
+	}
+
+	modifiedPkgs := make(map[string]bool)
+	lines := strings.Split(gitOut.String(), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) < 4 { continue }
+		
+		filePath := line[3:]
+		dir := filepath.Dir(filePath)
+		dir = strings.ReplaceAll(dir, "\\", "/")
+		if dir == "." { dir = "" }
+		
+		curr := dir
+		for {
+			if _, err := os.Stat(filepath.Join(wsPath, curr, "BUILD")); err == nil {
+				modifiedPkgs["//"+curr] = true
+				break
+			}
+			if _, err := os.Stat(filepath.Join(wsPath, curr, "BUILD.bazel")); err == nil {
+				modifiedPkgs["//"+curr] = true
+				break
+			}
+			if curr == "" || curr == "." { break }
+			
+			idx := strings.LastIndex(curr, "/")
+			if idx == -1 { curr = "" } else { curr = curr[:idx] }
+		}
+	}
+
+	if len(modifiedPkgs) == 0 {
+		return []string{"//..."}
+	}
+
+	var pkgList []string
+	for pkg := range modifiedPkgs {
+		pkgList = append(pkgList, fmt.Sprintf("rdeps(//..., %s)", pkg))
+	}
+	queryExpr := fmt.Sprintf("kind(test, %s)", strings.Join(pkgList, " + "))
+
+	cmdQuery := exec.Command(bazelExe, "--output_user_root="+bazelOut, "query", queryExpr)
+	cmdQuery.Dir = wsPath
+	var queryOut bytes.Buffer
+	cmdQuery.Stdout = &queryOut
+	if err := cmdQuery.Run(); err != nil {
+		return []string{"//..."}
+	}
+
+	var targets []string
+	scanner := bufio.NewScanner(&queryOut)
+	for scanner.Scan() {
+		target := strings.TrimSpace(scanner.Text())
+		if target != "" {
+			targets = append(targets, target)
+		}
+	}
+	return targets
+}
+```
+
+### 4.2 Parallel Rehydration Scheduling (`s-qdag` Orchestration)
+The build cascade maps dependent modules to nodes and evaluates them concurrently:
+
+```go
+// Parallel DAG scheduler utilizing worker goroutines
+graph := qdag.NewDAG()
+// Populate graph...
+for {
+	ready := graph.GetReadyNodes()
+	if len(ready) == 0 { break }
+	
+	var wg sync.WaitGroup
+	for _, node := range ready {
+		wg.Add(1)
+		go func(n string) {
+			defer wg.Done()
+			err := compileAndVerify(n)
+			if err == nil {
+				graph.CompleteNode(n)
+			}
+		}(node)
+	}
+	wg.Wait()
+}
+```

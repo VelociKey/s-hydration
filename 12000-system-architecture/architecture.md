@@ -5,18 +5,17 @@ The **sHydrator** engine acts as the primary gatekeeper for the air-gapped Veloc
 ```mermaid
 graph TD
     subgraph External Hydration (Green Tea Engine)
-        Manifests[Authority Manifests .webnf.manifest] -->|Load| Engine[hydrator.go Engine]
-        Engine -->|Download/Ingest| Shadow[Shadow Sandbox Dir]
-        Shadow -->|Iterative DFS Metabolic Pruning| Pruner[DFS Metabolic & Deep Pruner]
-        Pruner -->|Deterministic Seal| Hash[SignPrunedProduct blake3]
-        Hash -->|Promote & Register| SBOM[sbom_external_artifact.webnf]
-        SBOM -->|Verify Paths| Paths[FLEET-PATHS.webnf]
+        Manifests[Authority Manifests] -->|Load| Engine[hydrator.go Engine]
+        Engine -->|DAG Cohort Scheduling| QDAG[s-qdag DAG / LPT Sorter]
+        QDAG -->|Parallel Ingestion| Sandbox[Shadow Sandbox]
+        Sandbox -->|Iterative DFS Pruning| Seal[Deterministic Seal]
+        Seal -->|Register| SBOM[sbom_external_artifact.webnf]
     end
 
-    subgraph Internal Hydration (Bazel Orchestration)
-        BazelRules[Bazel Rulesets & Rules_Go] -->|Offline Decoupled Promotion| LocalForge[s-forge Repository Silo]
-        LocalForge -->|Relative Local Mapping| MODULE[MODULE.bazel]
-        MODULE -->|Bazel Orchestrator| Compilation[Local AMD64 Hermetic Compilation]
+    subgraph Internal Hydration (int-rehydrator)
+        Workspaces[go.work / workspaces] -->|Dependency Graph| IntQDAG[s-qdag Cascade Scheduler]
+        IntQDAG -->|Parallel Workers| Compile[Hermetic Compiles]
+        Compile -->|Targeted Bazel Verification| Bazel[rdeps Test Target Slicer]
     end
 ```
 
@@ -52,3 +51,21 @@ The hydration structures strictly adhere to the semantically based, sequence-pre
 
 > [!NOTE]
 > All paths mapped inside this directory layout are strictly validated against **FLEET-PATHS.webnf** during every promotion phase to eliminate workspace path hijacking or environment configuration drift.
+
+---
+
+## 3. Topological Dependency Scheduling (`s-qdag` Engine)
+
+To scale compilation throughput while guaranteeing strict dependency ordering, both internal and external rehydration flows are orchestrated as Directed Acyclic Graphs (DAGs) using `s-qdag`.
+
+### 3.1 Cross-Language Internal Dependency Parsing
+The internal cascade scheduler resolves the union of Go and Dart workspace dependency trees:
+1. **Dependency Ingestion**: Parses both `"dependencies"` (Go) and `"dart_packages"` (Dart) blocks from `dependencies.webnf`.
+2. **Topological Evaluation**: Computes the exact build ordering for compilation targets, preventing downstream targets (like `o-afflume`) from executing before upstream platforms (like `s-qdag` or `s-natives`).
+3. **Targeted Verification Tests**: Employs git delta slicing (`git status`) to trace packages with modified files, querying Bazel's AST using target `rdeps` to run verification checks strictly on affected test trees.
+
+### 3.2 Longest Processing Time First (LPT) Ingestion
+External toolchain ingestion leverages LPT scheduling constraints to optimize network and I/O concurrency:
+1. **Bootstrap Phase**: Core runtimes (`golang` and the JDK) are isolated at index 0 of the dependency queue to resolve first, unblocking down-level compiler dependencies.
+2. **Cohort Parallelization**: Standard downloads are grouped into independent cohorts.
+3. **LPT Sorting**: Streams are sorted descending by their historical durations (read from `hydration_experience.webnf`), ensuring the slowest downloads start earliest to minimize pipeline tail latencies.

@@ -110,3 +110,27 @@ The NATVS Engine currently designates four core external logic-libraries as plat
 #### D. quic-go Transport Engine (`github.com/quic-go/quic-go`)
 *   **Justification:** Standard HTTP and TCP are too slow and single-streamed to handle rapid, multiplexed cognitive actor handshakes on our trust bus (Whisper Bus) connecting Jules and the NATVS orchestration engine.
 *   **Application:** Powers multiplexed, low-latency agent RPC communication and secure local capability negotiations.
+
+---
+
+## 5. Safe Caching Overrides vs. Destructive Hollowing
+
+### 5.1 The Safety Vulnerability
+The legacy external hydrator supported a `-force` CLI flag which executed a destructive subdirectory hollowing operation (`hollowDirectory`) on targets before downloading assets. In air-gapped workspaces containing cached resources or sensitive developer overrides, this mechanism posed a severe risk of accidental file loss.
+
+### 5.2 The Design Solution
+We completely removed the `-force` CLI flag, `hollowDirectory` function, and all hollowing checks. In its place, we introduced the safe **`-noskip`** flag.
+- **Underlying Principle**: If a target is already hydrated, the engine ordinarily skips it to conserve time and bandwidth.
+- **Bypass Mode**: The `-noskip` flag forces the engine to download, verify, and overwrite target binaries in-place *without* hollowing out or deleting existing local directory trees, preserving any local developer modifications.
+
+---
+
+## 6. Monorepo Workspace Dependency Resolution (`go.work`)
+
+### 6.1 The Isolation Fallacy
+Older builds forced `GOWORK=off` during `go mod tidy` and `go build` phases, attempting to compile modules hermetically in isolation. In a complex, multi-module monorepo with custom local package mappings (`sov.fleet/s-logiclibrary`, `sov.fleet/blake3`), running with `GOWORK=off` deletes local package references from `go.mod` because they cannot be resolved from the internet registry, failing the subsequent compile.
+
+### 6.2 The Design Solution
+We removed all explicit `GOWORK=off` and `GOWORK=on` overrides from execution environment hooks.
+- **Discovery Mode**: Unsetting `GOWORK` allows the Go toolchain to naturally scan parent paths and discover the root `go.work` file.
+- **Unified Resolution**: The build engine resolves all internal dependency mappings hermetically through the monorepo workspace definition, ensuring compilation of down-level modules (such as `o-afflume`) succeeds cleanly.
