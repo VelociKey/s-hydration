@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -45,7 +45,7 @@ func (b *SACPBroker) RegisterTransitionToken(token string, auth AuthorityLevel) 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.activeTokens[token] = auth
-	log.Printf("[SACPBroker] Registered Metabolic transition token %q with level %s", token, auth)
+	slog.Info(fmt.Sprintf("[SACPBroker] Registered Metabolic transition token %q with level %s", token, auth))
 }
 
 // ValidateMonotonicInvariant asserts that delegates do not escalate authority.
@@ -68,7 +68,7 @@ func (b *SACPBroker) StartUDPServer() error {
 		return fmt.Errorf("failed to listen on UDP: %w", err)
 	}
 	b.listener = conn
-	log.Printf("[SACPBroker] raw QUIC/UDP Broker listening on %s", b.udpAddr)
+	slog.Info(fmt.Sprintf("[SACPBroker] raw QUIC/UDP Broker listening on %s", b.udpAddr))
 
 	go b.listenLoop()
 	return nil
@@ -86,14 +86,14 @@ func (b *SACPBroker) listenLoop() {
 				if errors.Is(err, net.ErrClosed) {
 					return
 				}
-				log.Printf("[SACPBroker] Read error: %v", err)
+				slog.Info(fmt.Sprintf("[SACPBroker] Read error: %v", err))
 				continue
 			}
 
 			// Parse incoming frame using the Symmetric Callee Proxy
 			callee := NewSACPCalleeProxy(buf[:n])
 			if callee.GetOriginalUUID() == "" {
-				log.Printf("[SACPBroker] Ignoring malformed frame of size %d", n)
+				slog.Info(fmt.Sprintf("[SACPBroker] Ignoring malformed frame of size %d", n))
 				continue
 			}
 
@@ -106,7 +106,7 @@ func (b *SACPBroker) listenLoop() {
 			// Validate Monotonic Authority Invariant
 			err = b.ValidateMonotonicInvariant(header)
 			if err != nil {
-				log.Printf("[SACPBroker] [BLOCK] Packet rejected: %v", err)
+				slog.Info(fmt.Sprintf("[SACPBroker] [BLOCK] Packet rejected: %v", err))
 				continue
 			}
 
@@ -116,7 +116,7 @@ func (b *SACPBroker) listenLoop() {
 
 			b.ResetIdleWatchdog() // Reset on SACP frame activity
 
-			log.Printf("[SACPBroker] [PASS] Verified SACP Frame for %s with authority %s", header.OriginalUUID, header.CurrentAuthority)
+			slog.Info(fmt.Sprintf("[SACPBroker] [PASS] Verified SACP Frame for %s with authority %s", header.OriginalUUID, header.CurrentAuthority))
 		}
 	}
 }
@@ -141,7 +141,7 @@ func (b *SACPBroker) ProcessMetabolicSwap(token string, clientUUID string) error
 
 	b.ResetIdleWatchdog() // Reset on metabolic hot-swap task goal arrival
 
-	log.Printf("[SACPBroker] Metabolic Hot-Swap success! Session %q elevated to QUIC SACP with level %s", clientUUID, auth)
+	slog.Info(fmt.Sprintf("[SACPBroker] Metabolic Hot-Swap success! Session %q elevated to QUIC SACP with level %s", clientUUID, auth))
 	return nil
 }
 

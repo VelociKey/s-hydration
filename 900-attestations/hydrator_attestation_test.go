@@ -426,4 +426,53 @@ rehydration_requirements: ["gitleaks", "opentofu"]
 	}
 }
 
+func TestScanLicenseCompliance(t *testing.T) {
+	h := NewSovereignPurifier()
+
+	tmpDir, err := os.MkdirTemp("", "license-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Clean scratch cache if it exists to avoid interference
+	os.Setenv("GEMINI_CLI_HOME", tmpDir)
+
+	// Test case 1: Standard LICENSE file containing GPL version 3
+	gplDir := filepath.Join(tmpDir, "gpl-pkg")
+	os.MkdirAll(gplDir, 0755)
+	os.WriteFile(filepath.Join(gplDir, "LICENSE"), []byte("This software is governed by the Affero General Public License (AGPL)"), 0644)
+
+	err = h.ScanLicenseCompliance("mock-gpl-pkg", gplDir)
+	if err == nil {
+		t.Error("Expected primary scan to fail and block GPL/AGPL license, but it passed")
+	}
+
+	// Test case 2: No standard LICENSE file, but inline GPL comment in source file (secondary discovery scan)
+	inlineDir := filepath.Join(tmpDir, "inline-gpl-pkg")
+	os.MkdirAll(inlineDir, 0755)
+	os.WriteFile(filepath.Join(inlineDir, "main.go"), []byte("// Copyright 2026. This file is licensed under GPL v3.\npackage main\n"), 0644)
+
+	err = h.ScanLicenseCompliance("mock-inline-gpl", inlineDir)
+	if err == nil {
+		t.Error("Expected secondary discovery scan to block inline copyleft terms, but it passed")
+	}
+
+	// Test case 3: Safe, non-copyleft library
+	safeDir := filepath.Join(tmpDir, "safe-pkg")
+	os.MkdirAll(safeDir, 0755)
+	os.WriteFile(filepath.Join(safeDir, "LICENSE"), []byte("MIT License\nPermission is hereby granted..."), 0644)
+
+	err = h.ScanLicenseCompliance("mock-safe-pkg", safeDir)
+	if err != nil {
+		t.Errorf("Expected license compliance to pass for MIT license, but got error: %v", err)
+	}
+
+	// Test case 4: Cached license check bypass
+	err = h.ScanLicenseCompliance("mock-safe-pkg", safeDir)
+	if err != nil {
+		t.Errorf("Expected cached license check to succeed, got error: %v", err)
+	}
+}
+
 

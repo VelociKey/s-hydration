@@ -8,8 +8,8 @@ workspace_harness {
         target {
             mode : DYNAMIC ;
             engine : "go-compiler" ;
-            src : "cmd/hydrator" ;
-            out : "s-hydration" ;
+            src : "cmd/ext-rehydrator" ;
+            out : "ext-rehydrator" ;
             category : "TOOLCHAIN" ;
         }
         target {

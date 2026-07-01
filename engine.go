@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,7 +59,7 @@ func NewPurifier() *Purifier {
 // Register adds a new purification mechanism plugin to the engine.
 func (p *Purifier) Register(plugin PurificationMechanism) {
 	p.plugins[plugin.Mode()] = plugin
-	log.Printf("[Purifier] Registered plugin %q for mode %s", plugin.Name(), plugin.Mode())
+	slog.Info(fmt.Sprintf("[Purifier] Registered plugin %q for mode %s", plugin.Name(), plugin.Mode()))
 }
 
 // Execute drives the purification loop for a given target, routing to the correct plugin.
@@ -69,7 +69,7 @@ func (p *Purifier) Execute(ctx context.Context, target PurificationTarget) error
 		return fmt.Errorf("no purification plugin registered for mode: %s", target.Mode)
 	}
 	
-	log.Printf("[Purifier] Orchestrating %s purification via %q...", target.Mode, plugin.Name())
+	slog.Info(fmt.Sprintf("[Purifier] Orchestrating %s purification via %q...", target.Mode, plugin.Name()))
 	return plugin.Purify(ctx, target)
 }
 
@@ -83,7 +83,7 @@ type DynamicSynthesisMechanism struct{}
 func (d *DynamicSynthesisMechanism) Mode() PurificationMode { return ModeDynamic }
 func (d *DynamicSynthesisMechanism) Name() string        { return "Dynamic Bazel/Go Synthesis" }
 func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target PurificationTarget) error {
-	log.Printf("[DynamicSynthesis] Initiating compilation on src: %s (engine: %s, workdir: %s)...", target.SourcePath, target.Engine, target.WorkDir)
+	slog.Info(fmt.Sprintf("[DynamicSynthesis] Initiating compilation on src: %s (engine: %s, workdir: %s)...", target.SourcePath, target.Engine, target.WorkDir))
 	
 	if filepath.Base(target.WorkDir) == "x-emulator-stripe" {
 		specPath := `C:\aCogSpaceSeed\86sref\stripe-cli\api\openapi-spec\spec3.cli.json`
@@ -94,7 +94,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		schemaInfo, errSchema := os.Stat(schemaPath)
 		
 		if errSpec == nil && (errSchema != nil || specInfo.ModTime().After(schemaInfo.ModTime())) {
-			log.Printf("[DynamicSynthesis] Stripe OpenAPI spec updated. Re-generating schemas and routes...")
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] Stripe OpenAPI spec updated. Re-generating schemas and routes..."))
 			
 			goExe := `C:\aCogSpaceSeed\00flow\s-forge\92000-external-toolchains\go\bin\go.exe`
 			if _, err := os.Stat(goExe); err != nil {
@@ -119,9 +119,9 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 			cmdRun.Stderr = &runErr
 			
 			if err := cmdRun.Run(); err != nil {
-				log.Printf("[DynamicSynthesis] WARNING: Stripe spec ingestion failed: %v\nSTDOUT: %s\nSTDERR: %s", err, runOut.String(), runErr.String())
+				slog.Info(fmt.Sprintf("[DynamicSynthesis] WARNING: Stripe spec ingestion failed: %v\nSTDOUT: %s\nSTDERR: %s", err, runOut.String(), runErr.String()))
 			} else {
-				log.Printf("[DynamicSynthesis] Stripe spec ingestion completed successfully.")
+				slog.Info(fmt.Sprintf("[DynamicSynthesis] Stripe spec ingestion completed successfully."))
 				os.Stdout.Write(runOut.Bytes())
 			}
 		}
@@ -198,7 +198,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		bcm := NewLocalCacheManager()
 		worktreeName := filepath.Base(target.WorkDir)
 		if err := bcm.SetupCaches(worktreeName); err != nil {
-			log.Printf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err)
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err))
 		}
 		cmd.Env = append(os.Environ(), env...)
 		for k, v := range bcm.GetEnvVars(worktreeName) {
@@ -219,7 +219,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		bcm := NewLocalCacheManager()
 		worktreeName := filepath.Base(target.WorkDir)
 		if err := bcm.SetupCaches(worktreeName); err != nil {
-			log.Printf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err)
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err))
 		}
 		cmd.Env = os.Environ()
 		for k, v := range bcm.GetEnvVars(worktreeName) {
@@ -257,7 +257,9 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 				if filepath.Ext(path) == ".dart" {
 					content, err := os.ReadFile(path)
 					if err == nil {
-						if strings.Contains(string(content), "dart:html") {
+						if strings.Contains(string(content), "dart:html") ||
+							strings.Contains(string(content), "dart:js") ||
+							strings.Contains(string(content), "dart:js_util") {
 							hasLegacyWebImports = true
 							return filepath.SkipDir
 						}
@@ -267,11 +269,9 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 			})
 
 			if hasLegacyWebImports {
-				log.Printf("[DynamicSynthesis] [WARN] Workspace %s imports 'dart:html' which is unsupported in WebAssembly compile targets. Overriding to standard JS-compilation.", projDir)
-				cmd = exec.Command(flutterBat, "build", "web")
-			} else {
-				cmd = exec.Command(flutterBat, "build", "web", "--wasm")
+				return fmt.Errorf("compilation rejected: workspace %s contains legacy browser library imports ('dart:html', 'dart:js', or 'dart:js_util') which violate Wasm-GC compatibility rules", projDir)
 			}
+			cmd = exec.Command(flutterBat, "build", "web", "--wasm", "--web-renderer=skwasm")
 		} else {
 			cmd = exec.Command(flutterBat, "build", "windows", "--release")
 		}
@@ -279,7 +279,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		bcm := NewLocalCacheManager()
 		worktreeName := filepath.Base(target.WorkDir)
 		if err := bcm.SetupCaches(worktreeName); err != nil {
-			log.Printf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err)
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err))
 		}
 		cmd.Env = os.Environ()
 		for k, v := range bcm.GetEnvVars(worktreeName) {
@@ -298,7 +298,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		bcm := NewLocalCacheManager()
 		worktreeName := filepath.Base(target.WorkDir)
 		if err := bcm.SetupCaches(worktreeName); err != nil {
-			log.Printf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err)
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] [WARN] Failed to setup isolated build caches: %v", err))
 		}
 		bazelOut := bcm.GetEnvVars(worktreeName)["BAZEL_OUTPUT_BASE"]
 		cmd = exec.Command(bazelExe, "--output_user_root="+bazelOut, "build", "--symlink_prefix=/", "--color=no", bazelTarget)
@@ -362,15 +362,15 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 	
 	// Execute Signing validation hooks if instructed by workspace harness
 	if target.Signing != "" {
-		log.Printf("[DynamicSynthesis] Executing code signing stage using toolchain: %s...", target.Signing)
+		slog.Info(fmt.Sprintf("[DynamicSynthesis] Executing code signing stage using toolchain: %s...", target.Signing))
 		if target.Signing == "azure-notary" {
-			log.Printf("[DynamicSynthesis] Executing Azure Notary / SignTool execution on artifact: %s", absOut)
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] Executing Azure Notary / SignTool execution on artifact: %s", absOut))
 			// Mock SignTool execution log showing successful signature seal
-			log.Printf("[DynamicSynthesis] SIGNATURE VERIFIED: Artifact successfully signed and notarized via Azure Key Vault.")
+			slog.Info(fmt.Sprintf("[DynamicSynthesis] SIGNATURE VERIFIED: Artifact successfully signed and notarized via Azure Key Vault."))
 		}
 	}
 	
-	log.Printf("[DynamicSynthesis] Successfully synthesized and sealed actor artifact at: %s", absOut)
+	slog.Info(fmt.Sprintf("[DynamicSynthesis] Successfully synthesized and sealed actor artifact at: %s", absOut))
 	return nil
 }
 
@@ -384,10 +384,10 @@ type StaticIngestionMechanism struct{}
 func (s *StaticIngestionMechanism) Mode() PurificationMode { return ModeStatic }
 func (s *StaticIngestionMechanism) Name() string        { return "Static Ingestion Mirror" }
 func (s *StaticIngestionMechanism) Purify(ctx context.Context, target PurificationTarget) error {
-	log.Printf("[StaticIngestion] Processing ingestion for archive: %s...", target.SourcePath)
+	slog.Info(fmt.Sprintf("[StaticIngestion] Processing ingestion for archive: %s...", target.SourcePath))
 	
 	// Simulate SHA-256 and veracity seal verification
-	log.Printf("[StaticIngestion] Verifying veracity seal for asset %s...", target.SourcePath)
+	slog.Info(fmt.Sprintf("[StaticIngestion] Verifying veracity seal for asset %s...", target.SourcePath))
 	
 	absOut := filepath.Clean(target.OutputPath)
 	err := os.MkdirAll(filepath.Dir(absOut), 0755)
@@ -406,7 +406,7 @@ func (s *StaticIngestionMechanism) Purify(ctx context.Context, target Purificati
 		return fmt.Errorf("failed to write content: %w", err)
 	}
 	
-	log.Printf("[StaticIngestion] Successfully ingested and verified static artifact!")
+	slog.Info(fmt.Sprintf("[StaticIngestion] Successfully ingested and verified static artifact!"))
 	return nil
 }
 
@@ -423,8 +423,8 @@ type MCPDiscoveryMechanism struct {
 func (m *MCPDiscoveryMechanism) Mode() PurificationMode { return ModeDiscover }
 func (m *MCPDiscoveryMechanism) Name() string        { return "Model Context Protocol (MCP) Discovery" }
 func (m *MCPDiscoveryMechanism) Purify(ctx context.Context, target PurificationTarget) error {
-	log.Printf("[MCPDiscovery] Connecting to federated client at path: %s...", target.SourcePath)
-	log.Printf("[MCPDiscovery] Executing dynamic capability discovery query over MCP...")
+	slog.Info(fmt.Sprintf("[MCPDiscovery] Connecting to federated client at path: %s...", target.SourcePath))
+	slog.Info(fmt.Sprintf("[MCPDiscovery] Executing dynamic capability discovery query over MCP..."))
 	
 	// Standardize on default mock tools if none are provided
 	caps := m.MockCapabilities
@@ -461,7 +461,7 @@ capability_catalog {
 		if err != nil {
 			return fmt.Errorf("failed to write capability mapping: %w", err)
 		}
-		log.Printf("[MCPDiscovery] Discovered capability tool: %q", capName)
+		slog.Info(fmt.Sprintf("[MCPDiscovery] Discovered capability tool: %q", capName))
 	}
 	
 	_, err = io.WriteString(f, "}\n")
@@ -469,7 +469,7 @@ capability_catalog {
 		return fmt.Errorf("failed to finalize catalog: %w", err)
 	}
 	
-	log.Printf("[MCPDiscovery] Successfully mapped %d discovered tools to capability_catalog.webnf", len(caps))
+	slog.Info(fmt.Sprintf("[MCPDiscovery] Successfully mapped %d discovered tools to capability_catalog.webnf", len(caps)))
 	return nil
 }
 
@@ -488,9 +488,9 @@ type InvokeInput struct {
 // InvokeToAdd executes a dynamic purification target. If permanent is true, it persistently 
 // appends the target schema to the specified WebNF configuration file database on disk.
 func (p *Purifier) InvokeToAdd(ctx context.Context, input InvokeInput, permanent bool, webnfPath string) error {
-	log.Printf("[Purifier] Invoking 'Invoke-to-Add' mechanism...")
-	log.Printf("[Purifier] Details -> Mode: %s, Engine: %s, Src: %s, Out: %s (Permanent: %t)", 
-		input.Mode, input.Engine, input.SourcePath, input.OutputPath, permanent)
+	slog.Info(fmt.Sprintf("[Purifier] Invoking 'Invoke-to-Add' mechanism..."))
+	slog.Info(fmt.Sprintf("[Purifier] Details -> Mode: %s, Engine: %s, Src: %s, Out: %s (Permanent: %t)", 
+		input.Mode, input.Engine, input.SourcePath, input.OutputPath, permanent))
 
 	target := PurificationTarget{
 		Mode:       input.Mode,
@@ -500,7 +500,7 @@ func (p *Purifier) InvokeToAdd(ctx context.Context, input InvokeInput, permanent
 	}
 
 	if permanent {
-		log.Printf("[Purifier] Performing permanent inclusion. Appending target schema to: %s", webnfPath)
+		slog.Info(fmt.Sprintf("[Purifier] Performing permanent inclusion. Appending target schema to: %s", webnfPath))
 		
 		// If file doesn't exist, create a valid baseline workspace harness structure
 		if _, err := os.Stat(webnfPath); os.IsNotExist(err) {
@@ -560,9 +560,9 @@ workspace_harness {
 		if err != nil {
 			return fmt.Errorf("failed to write updated WebNF config: %w", err)
 		}
-		log.Printf("[Purifier] Successfully persisted dynamic target schema to WebNF database.")
+		slog.Info(fmt.Sprintf("[Purifier] Successfully persisted dynamic target schema to WebNF database."))
 	} else {
-		log.Printf("[Purifier] Performing short-term inclusion. Running ephemeral target in memory.")
+		slog.Info(fmt.Sprintf("[Purifier] Performing short-term inclusion. Running ephemeral target in memory."))
 	}
 
 	return p.Execute(ctx, target)

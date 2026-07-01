@@ -5,32 +5,33 @@ import (
 	"path/filepath"
 	"testing"
 
+	"sov.fleet/s-logiclibrary/00200-logic-libraries/adph"
 	. "sov.fleet/s-hydration/400-registry"
 )
 
 func TestNewPerfectHash(t *testing.T) {
 	keys := []string{"blake3", "quic-go", "qpack", "go-tpm", "wazero", "quicdl"}
-	ph, err := NewPerfectHash(keys)
+	ph, err := adph.NewAdaptivePerfectHash(keys, adph.WithStaticOnly())
 	if err != nil {
 		t.Fatalf("failed to construct perfect hash: %v", err)
 	}
-	if ph.Size != len(keys) {
-		t.Errorf("expected size %d, got %d", len(keys), ph.Size)
+	if ph.Size() != len(keys) {
+		t.Errorf("expected size %d, got %d", len(keys), ph.Size())
 	}
 
 	// Verify all keys are found
 	for _, key := range keys {
-		idx := ph.LookupIndex(key)
+		idx := ph.Lookup(key)
 		if idx == -1 {
 			t.Errorf("key %q not found in perfect hash", key)
 		}
-		if ph.Keys[idx] != key {
-			t.Errorf("slotted key at index %d is %q, expected %q", idx, ph.Keys[idx], key)
+		if keys[idx] != key {
+			t.Errorf("slotted key at index %d is %q, expected %q", idx, keys[idx], key)
 		}
 	}
 
 	// Verify non-existent key returns -1
-	if idx := ph.LookupIndex("non-existent"); idx != -1 {
+	if idx := ph.Lookup("non-existent"); idx != -1 {
 		t.Errorf("expected -1 for non-existent key, got %d", idx)
 	}
 }

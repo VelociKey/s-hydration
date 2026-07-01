@@ -114,16 +114,16 @@ Depending on whether we are hydrating third-party external code or compiling fir
 
 ```mermaid
 graph TD
-    subgraph "External Rehydration Flow (ext-rehydrate)"
+    subgraph "External Rehydration Flow (ext-rehydrator)"
         A1["Human Choice / Operator"] -->|Registers package + URL| B1["External Manifest (sbom.external_artifact.webnf)"]
-        B1 -->|Defines inputs for| C1["ext-rehydrate Command"]
+        B1 -->|Defines inputs for| C1["ext-rehydrator Command"]
         C1 -->|Passes source to| D1["Purifier Engine"]
         D1 -->|Runs purification steps: verification, pruning, scan, compile| E1["Hardened Artifact & Conformed SBOM Seal"]
     end
 
-    subgraph "Internal Rehydration Flow (int-rehydrate)"
+    subgraph "Internal Rehydration Flow (int-rehydrator)"
         A2["Human Choice / Workspace Creation"] -->|Configures files & code| B2["Go Workspaces (go.work is the Manifest)"]
-        B2 -->|Defines targets for| C2["int-rehydrate Command"]
+        B2 -->|Defines targets for| C2["int-rehydrator Command"]
         C2 -->|Passes source to| D2["Purifier Engine"]
         D2 -->|Runs purification steps: compilation, signing, validation| E2["Staged Workspace Binary / Artifact"]
     end
