@@ -77,7 +77,7 @@ type SovereignPurifier struct {
 	abtest          bool
 	testBuild       bool
 	updateHashes    bool
-	force           bool
+	noskip          bool
 	reportRecords   []IngressReportRecord
 	reportMutex     sync.Mutex
 	activeArtifacts map[string]time.Time
@@ -125,7 +125,7 @@ func (h *SovereignPurifier) markActive(name string, inProgress bool) {
 
 func PurifierMain() {
 	checkFlag := flag.Bool("check", false, "Execute full dry-run dynamic scheduling checklist")
-	forceFlag := flag.Bool("force", false, "Force download, metabolic prune, and seal all artifacts")
+	noskipFlag := flag.Bool("noskip", false, "Force download and metabolic prune all artifacts without skipping matches")
 	onlyFlag := flag.String("only", "", "Hydrate and verify a single targeted package")
 	progressFlag := flag.Bool("progress", false, "Enable detailed start-to-finish real-time progress reporting during downloads")
 	sequentialFlag := flag.Bool("sequential", false, "Force all operations to execute sequentially (concurrency=1)")
@@ -234,23 +234,23 @@ func PurifierMain() {
 		return
 	}
 
-	if !checkExplicit && !*checkFlag && !*forceFlag && *onlyFlag == "" && !*abtestFlag {
+	if !checkExplicit && !*checkFlag && !*noskipFlag && *onlyFlag == "" && !*abtestFlag {
 		*checkFlag = true
 	}
 
-	err := h.Run(*checkFlag, *forceFlag, *onlyFlag)
+	err := h.Run(*checkFlag, *noskipFlag, *onlyFlag)
 	if err != nil {
 		slog.Error("Sovereign Purifier failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func (h *SovereignPurifier) Run(check, force bool, only string) error {
+func (h *SovereignPurifier) Run(check, noskip bool, only string) error {
 	if h.testBuild {
 		defer h.cleanLocalWorkstationExecutables()
 	}
-	h.force = force
-	slog.Info("Sovereign Hydration Ingest Starting", "check_mode", check, "force_mode", force)
+	h.noskip = noskip
+	slog.Info("Sovereign Hydration Ingest Starting", "check_mode", check, "noskip_mode", noskip)
 
 
 
@@ -326,7 +326,7 @@ func (h *SovereignPurifier) Run(check, force bool, only string) error {
 
 	if check {
 		h.printExecutionPlan(bootstrapQueue, massiveQueue, hostCohorts)
-		_ = h.WriteReport(force, time.Now(), time.Now(), 0)
+		_ = h.WriteReport(noskip, time.Now(), time.Now(), 0)
 		return nil
 	}
 
@@ -388,7 +388,7 @@ func (h *SovereignPurifier) Run(check, force bool, only string) error {
 		"global_duration", totalDuration.Round(time.Millisecond),
 	)
 
-	_ = h.WriteReport(force, globalStart, globalFinish, totalDuration)
+	_ = h.WriteReport(noskip, globalStart, globalFinish, totalDuration)
 
 	// Measure final disk space and report delta
 	finalDiskSpace, diskSpaceErr := getAvailableDiskSpace(ShadowDir)
@@ -639,12 +639,7 @@ func (h *SovereignPurifier) hydrateAndSealTarget(rec ArtifactRecord) error {
 		return fmt.Errorf("no target destination path mapped for %s", rec.Name)
 	}
 
-	if h.force {
-		slog.Info("Force mode enabled: hollowing out target destination path to ensure fresh hydration", "path", destForgePath)
-		_ = hollowDirectory(destForgePath)
-	}
-
-	if !h.force {
+	if !h.noskip {
 		if _, err := os.Stat(destForgePath); err == nil {
 			isBlake3 := true
 			destHash, _, err := h.PruneAndHash(destForgePath, false, isBlake3)
@@ -1986,7 +1981,7 @@ func (h *SovereignPurifier) TidyGoModule(path string) error {
 	return nil
 }
 
-func (h *SovereignPurifier) WriteReport(force bool, start time.Time, finish time.Time, elapsed time.Duration) error {
+func (h *SovereignPurifier) WriteReport(noskip bool, start time.Time, finish time.Time, elapsed time.Duration) error {
 	var webnf bytes.Buffer
 	webnf.WriteString("HYDRATION-REPORT-V1\n")
 	webnf.WriteString(time.Now().Format("2006-01-02T15:04:05-07:00") + "\n")
@@ -2006,7 +2001,7 @@ func (h *SovereignPurifier) WriteReport(force bool, start time.Time, finish time
 	buf.WriteString("| Target Name | Version | Start Time | Download Complete | Pruning Complete | Promoted Time | Status |\n")
 	buf.WriteString("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n")
 
-	if !force {
+	if !noskip {
 		records, _ := ParseSBOM(SbomPath)
 		for _, rec := range records {
 			webnf.WriteString(fmt.Sprintf("report|%s|%s|0s|0s|0s|0s|valid\n", rec.Name, rec.Version))
