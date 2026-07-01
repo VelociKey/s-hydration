@@ -483,7 +483,7 @@ func findDownstreamNodes(graph map[string][]string, startNode string) map[string
 }
 
 func topologicalSort(graph map[string][]string, nodes map[string]bool) ([]string, error) {
-	d := qdag.NewDAG[struct{}]()
+	d := qdag.NewDAGWithStrategy[struct{}](&qdag.DFSSortStrategy{})
 	for n := range nodes {
 		d.AddNode(n, struct{}{})
 	}
