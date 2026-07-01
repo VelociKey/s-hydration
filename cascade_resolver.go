@@ -467,25 +467,19 @@ func loadDependencyGraph(depWebnfPath string) (map[string][]string, error) {
 }
 
 func findDownstreamNodes(graph map[string][]string, startNode string) map[string]bool {
-	revGraph := make(map[string][]string)
-	for node, deps := range graph {
+	d := qdag.NewDAG[struct{}]()
+	for n := range graph {
+		d.AddNode(n, struct{}{})
+	}
+	for n, deps := range graph {
 		for _, dep := range deps {
-			revGraph[dep] = append(revGraph[dep], node)
-		}
-	}
-
-	downstream := make(map[string]bool)
-	var visit func(string)
-	visit = func(n string) {
-		for _, next := range revGraph[n] {
-			if !downstream[next] {
-				downstream[next] = true
-				visit(next)
+			if _, ok := d.Nodes[dep]; !ok {
+				d.AddNode(dep, struct{}{})
 			}
+			_ = d.AddEdge(dep, n, nil)
 		}
 	}
-	visit(startNode)
-	return downstream
+	return d.BlastRadius(startNode)
 }
 
 func topologicalSort(graph map[string][]string, nodes map[string]bool) ([]string, error) {
