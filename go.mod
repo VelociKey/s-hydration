@@ -91,7 +91,7 @@ replace (
 	sov.fleet/stripe-go => ../s-forge/93000-external-libraries/stripe-go
 	sov.fleet/x-actors => ../../00xper/x-actors
 	sov.fleet/x-actorstudio => ../../00xper/x-actorstudio
-	sov.fleet/x-billing => ../x-billing
+	sov.fleet/o-billing => ../../00floo/o-billing
 	sov.nvelwraith/wraithclient => ../../.nvelwraith/src/sov.nvelwraith/wraithclient
 	x-transform-antigravity => ../../00xper/x-transform-antigravity
 )
