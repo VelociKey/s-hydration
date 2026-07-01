@@ -45,6 +45,7 @@ replace (
 	sov.fleet/o-bankanchor => ../../00floo/o-bankanchor
 	sov.fleet/o-banking => ../../00floo/o-banking
 	sov.fleet/o-bankmachine => ../../00floo/o-bankmachine
+	sov.fleet/o-billing => ../../00floo/o-billing
 	sov.fleet/o-ingestion => ../../00floo/o-ingestion
 	sov.fleet/o-invoicing => ../../00floo/o-invoicing
 	sov.fleet/o-ledger => ../../00floo/o-ledger
@@ -91,7 +92,6 @@ replace (
 	sov.fleet/stripe-go => ../s-forge/93000-external-libraries/stripe-go
 	sov.fleet/x-actors => ../../00xper/x-actors
 	sov.fleet/x-actorstudio => ../../00xper/x-actorstudio
-	sov.fleet/o-billing => ../../00floo/o-billing
 	sov.nvelwraith/wraithclient => ../../.nvelwraith/src/sov.nvelwraith/wraithclient
 	x-transform-antigravity => ../../00xper/x-transform-antigravity
 )

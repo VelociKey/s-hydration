@@ -186,6 +186,20 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 				}
 			}
 		}
+		// Run go mod tidy before compiling to ensure go.mod matches potential AST edits (e.g. from enhancers)
+		tidyCmd := exec.Command(goExe, "mod", "tidy")
+		tidyCmd.Dir = target.WorkDir
+		gorootTidy := filepath.Dir(filepath.Dir(goExe))
+		tidyCmd.Env = append(os.Environ(), "GOROOT="+gorootTidy, "GOWORK=off")
+		bcmTidy := NewLocalCacheManager()
+		worktreeNameTidy := filepath.Base(target.WorkDir)
+		if errTidy := bcmTidy.SetupCaches(worktreeNameTidy); errTidy == nil {
+			for k, v := range bcmTidy.GetEnvVars(worktreeNameTidy) {
+				tidyCmd.Env = append(tidyCmd.Env, fmt.Sprintf("%s=%s", k, v))
+			}
+		}
+		_ = tidyCmd.Run()
+
 		cmd = exec.Command(goExe, args...)
 		cmd.Dir = target.WorkDir
 		goroot := filepath.Dir(filepath.Dir(goExe))

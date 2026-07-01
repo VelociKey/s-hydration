@@ -35,8 +35,29 @@ func IntRehydratorMain() {
 	}
 
 	wsPath := *workspaceFlag
+	goWorkPath := filepath.Join(projectRoot, "go.work")
+
 	if !filepath.IsAbs(wsPath) {
-		wsPath = filepath.Clean(filepath.Join(projectRoot, wsPath))
+		resolved := false
+		if workspaces, err := parseGoWork(goWorkPath); err == nil {
+			for _, wsRel := range workspaces {
+				wsAbs := filepath.Join(projectRoot, filepath.FromSlash(wsRel))
+				if filepath.Base(wsAbs) == wsPath || wsRel == wsPath {
+					wsPath = wsAbs
+					resolved = true
+					break
+				}
+			}
+		}
+		if !resolved {
+			wsPath = filepath.Clean(filepath.Join(projectRoot, wsPath))
+		}
+	}
+
+	// Mark aCogSpaceSeed build=no (skip compilation for root seed workspace)
+	if wsPath == projectRoot || filepath.Base(wsPath) == "aCogSpaceSeed" {
+		slog.Info("Workspace build disabled for aCogSpaceSeed, skipping target compilation", "workspace", "aCogSpaceSeed")
+		os.Exit(0)
 	}
 
 	absHarnessPath, facets, err := resolveWorkspaceHarness(wsPath)
@@ -50,7 +71,7 @@ func IntRehydratorMain() {
 		os.Exit(0)
 	}
 
-	goWorkPath := filepath.Join(projectRoot, "go.work")
+	goWorkPath = filepath.Join(projectRoot, "go.work")
 	goExe := filepath.Join(projectRoot, "00flow", "s-forge", "92000-external-toolchains", "go", "bin", "go.exe")
 	if _, err := os.Stat(goExe); err != nil {
 		goExe = "go"
@@ -227,6 +248,7 @@ func IntRehydratorMain() {
 			os.Exit(1)
 		}
 		slog.Info("Promoted artifact successfully", "src", out.LocalPath, "dest", out.GlobalPath)
+		_ = os.Remove(out.LocalPath)
 	}
 
 	cleanLocalWorkstationExecutables(projectRoot)
