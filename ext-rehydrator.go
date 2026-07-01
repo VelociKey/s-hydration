@@ -1089,6 +1089,42 @@ func (h *SovereignPurifier) determineExecutionPlan(records []ArtifactRecord) ([]
 		parallelCohortGroups[host] = append(parallelCohortGroups[host], rec)
 	}
 
+	// 5. Ensure golang is first in bootstrap cohort
+	sort.Slice(bootstrapCohort, func(i, j int) bool {
+		return bootstrapCohort[i].Name == "golang"
+	})
+
+	h.expMutex.Lock()
+	// 6. Sort sequentialLargeCohort descending by historic duration (LPT Scheduling)
+	sort.Slice(sequentialLargeCohort, func(i, j int) bool {
+		d1 := time.Duration(0)
+		d2 := time.Duration(0)
+		if exp, exists := h.experience[sequentialLargeCohort[i].Name]; exists {
+			d1 = exp.LastDuration
+		}
+		if exp, exists := h.experience[sequentialLargeCohort[j].Name]; exists {
+			d2 = exp.LastDuration
+		}
+		return d1 > d2
+	})
+
+	// 7. Sort parallel cohorts per host descending by historic duration
+	for host, cohort := range parallelCohortGroups {
+		sort.Slice(cohort, func(i, j int) bool {
+			d1 := time.Duration(0)
+			d2 := time.Duration(0)
+			if exp, exists := h.experience[cohort[i].Name]; exists {
+				d1 = exp.LastDuration
+			}
+			if exp, exists := h.experience[cohort[j].Name]; exists {
+				d2 = exp.LastDuration
+			}
+			return d1 > d2
+		})
+		parallelCohortGroups[host] = cohort
+	}
+	h.expMutex.Unlock()
+
 	return bootstrapCohort, sequentialLargeCohort, parallelCohortGroups
 }
 
