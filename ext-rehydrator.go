@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"hash"
 
@@ -26,6 +25,7 @@ import (
 	"sov.fleet/quicdl"
 	"sov.fleet/s-hydration/400-registry"
 	"sov.fleet/s-agentbox/agentbox"
+	qdag "sov.fleet/s-qdag/81000-active-source/pkg/qdag"
 )
 
 const (
@@ -420,81 +420,118 @@ func (h *SovereignPurifier) executeExecutionPlan(bootstrapQueue, massiveQueue []
 		return err
 	}
 
-	// Phase 1: Mandatory Front-End Bootstrap (N=1)
-	if len(bootstrapQueue) > 0 {
-		slog.Info("Executing Phase 1: Mandatory Front-End Bootstrap (N=1)")
-		for _, rec := range bootstrapQueue {
-			if err := runTarget(rec); err != nil {
-				return nil, 0, fmt.Errorf("bootstrap phase failed on %s: %w", rec.Name, err)
+	// 1. Build unified s-qdag DAG
+	d := qdag.NewDAG[ArtifactRecord]()
+	for _, rec := range bootstrapQueue {
+		d.AddNode(rec.Name, rec)
+	}
+	for _, rec := range massiveQueue {
+		d.AddNode(rec.Name, rec)
+	}
+	for _, cohort := range hostCohorts {
+		for _, rec := range cohort {
+			d.AddNode(rec.Name, rec)
+		}
+	}
+
+	// Add dependencies: non-bootstrap depend on bootstrap elements
+	for _, bRec := range bootstrapQueue {
+		for _, mRec := range massiveQueue {
+			_ = d.AddEdge(bRec.Name, mRec.Name, nil)
+		}
+		for _, cohort := range hostCohorts {
+			for _, cRec := range cohort {
+				_ = d.AddEdge(bRec.Name, cRec.Name, nil)
 			}
 		}
 	}
 
-	// Phase 2: Massive Sequential Payloads (N=1)
-	if len(massiveQueue) > 0 {
-		slog.Info("Executing Phase 2: Massive Sequential Ingestions (N=1)")
-		for _, rec := range massiveQueue {
-			if err := runTarget(rec); err != nil {
-				return nil, 0, fmt.Errorf("massive sequential phase failed on %s: %w", rec.Name, err)
-			}
-		}
-	}
+	// 2. Perform concurrent execution flow guided by the DAG
+	wsWinnow := qdag.NewWinnowState()
+	completed := make(map[string]bool)
+	var muCompleted sync.Mutex
 
-	// Phase 3: Cohort Stream Multiplexing
-	if len(hostCohorts) > 0 {
-		if h.sequential {
-			slog.Info("Executing Phase 3: Cohort Stream Multiplexing (Sequential Override, Concurrency=1)")
-			for host, cohort := range hostCohorts {
-				slog.Info("Running sequential host cohort", "host", host)
-				for _, rec := range cohort {
-					if err := runTarget(rec); err != nil {
-						slog.Error("Sequential stream hydration failed", "name", rec.Name, "error", err)
+	var wg sync.WaitGroup
+	var massiveMu sync.Mutex
+
+	scaler := NewSovereignScaler(2, 4)
+	defer scaler.Shutdown()
+
+	for {
+		muCompleted.Lock()
+		readyNodes := d.GetReadyNodes(wsWinnow, completed)
+		muCompleted.Unlock()
+
+		if len(readyNodes) == 0 {
+			muCompleted.Lock()
+			doneCount := len(completed)
+			muCompleted.Unlock()
+			totalCount := len(bootstrapQueue) + len(massiveQueue)
+			for _, cohort := range hostCohorts {
+				totalCount += len(cohort)
+			}
+			if doneCount == totalCount {
+				break
+			}
+			break
+		}
+
+		for _, nodeID := range readyNodes {
+			muCompleted.Lock()
+			completed[nodeID] = false // mark active
+			muCompleted.Unlock()
+
+			node, _ := d.Nodes.Load(nodeID)
+			rec := node.Payload
+
+			wg.Add(1)
+			go func(r ArtifactRecord) {
+				defer wg.Done()
+
+				isBootstrap := false
+				for _, br := range bootstrapQueue {
+					if br.Name == r.Name {
+						isBootstrap = true
+						break
 					}
 				}
-			}
-		} else {
-			slog.Info("Executing Phase 3: Cohort Stream Multiplexing (SovereignScaler Elastic N=4 per host)")
-			var wg sync.WaitGroup
-			for host, cohort := range hostCohorts {
-				wg.Add(1)
-				go func(hostAuthority string, targets []ArtifactRecord) {
-					defer wg.Done()
-					slog.Info("Established HTTP/3 persistent connection cohort", "host", hostAuthority)
-					scaler := NewSovereignScaler(2, 4) // Min=2, Max=4 scaling workers per domain
-					defer scaler.Shutdown()
 
-					var cohortWg sync.WaitGroup
-					var sequentialMutex sync.Mutex
-					var failureCount int32
+				if isBootstrap {
+					if err := runTarget(r); err != nil {
+						slog.Error("Bootstrap hydration failed", "name", r.Name, "error", err)
+					}
+				} else {
+					isMassive := false
+					for _, mr := range massiveQueue {
+						if mr.Name == r.Name {
+							isMassive = true
+							break
+						}
+					}
 
-					for _, rec := range targets {
+					if isMassive {
+						massiveMu.Lock()
+						if err := runTarget(r); err != nil {
+							slog.Error("Massive payload hydration failed", "name", r.Name, "error", err)
+						}
+						massiveMu.Unlock()
+					} else {
+						var cohortWg sync.WaitGroup
 						cohortWg.Add(1)
-						targetRec := rec
 						scaler.Submit(func(ctx context.Context) error {
 							defer cohortWg.Done()
-
-							// Jitter Circuit Breaker: If failure rate is high, drop to sequential processing
-							if atomic.LoadInt32(&failureCount) >= 2 {
-								sequentialMutex.Lock()
-								defer sequentialMutex.Unlock()
-							}
-
-							if err := runTarget(targetRec); err != nil {
-								atomic.AddInt32(&failureCount, 1)
-								slog.Error("Parallel stream hydration failed", "name", targetRec.Name, "error", err)
-
-								if atomic.LoadInt32(&failureCount) == 2 {
-									slog.Warn("CIRCUIT BREAKER TRIPPED: Network jitter too high. Dropping host stream to sequential processing.", "host", hostAuthority)
-								}
-							}
-							return nil
+							return runTarget(r)
 						})
+						cohortWg.Wait()
 					}
-					cohortWg.Wait()
-				}(host, cohort)
-			}
-			wg.Wait()
+				}
+
+				muCompleted.Lock()
+				completed[r.Name] = true
+				muCompleted.Unlock()
+			}(rec)
 		}
+		wg.Wait()
 	}
 
 	return durations, time.Since(globalStart), nil
