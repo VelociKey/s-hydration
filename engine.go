@@ -190,7 +190,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		tidyCmd := exec.Command(goExe, "mod", "tidy")
 		tidyCmd.Dir = target.WorkDir
 		gorootTidy := filepath.Dir(filepath.Dir(goExe))
-		tidyCmd.Env = append(os.Environ(), "GOROOT="+gorootTidy, "GOWORK=on")
+		tidyCmd.Env = append(os.Environ(), "GOROOT="+gorootTidy)
 		bcmTidy := NewLocalCacheManager()
 		worktreeNameTidy := filepath.Base(target.WorkDir)
 		if errTidy := bcmTidy.SetupCaches(worktreeNameTidy); errTidy == nil {
@@ -203,7 +203,7 @@ func (d *DynamicSynthesisMechanism) Purify(ctx context.Context, target Purificat
 		cmd = exec.Command(goExe, args...)
 		cmd.Dir = target.WorkDir
 		goroot := filepath.Dir(filepath.Dir(goExe))
-		env := []string{"GOROOT=" + goroot, "GOWORK=on"}
+		env := []string{"GOROOT=" + goroot}
 		if os.Getenv("REHYDRATOR_WASM") == "true" {
 			env = append(env, "GOOS=wasip1", "GOARCH=wasm")
 		} else if strings.HasSuffix(strings.ToLower(absOut), ".wasm") || strings.Contains(strings.ToLower(target.SourcePath), "qapc") {
