@@ -26,6 +26,7 @@ require (
 	sov.fleet/s-agentbox v0.0.0
 	sov.fleet/s-latentlingua v0.0.0
 	sov.fleet/s-logiclibrary v0.0.0
+	sov.fleet/s-qdag v0.0.0
 )
 
 replace (
@@ -81,6 +82,7 @@ replace (
 	sov.fleet/s-mcpstudio => ../s-mcpstudio
 	sov.fleet/s-natives => ../s-natives
 	sov.fleet/s-parallizer => ../s-parallizer
+	sov.fleet/s-qdag => ../s-qdag
 	sov.fleet/s-riskpapers => ../../51slam/s-riskpapers
 	sov.fleet/s-sacp => ../s-sacp
 	sov.fleet/s-scoreboard => ../s-scoreboard

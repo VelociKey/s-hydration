@@ -1,6 +1,7 @@
 package hydration
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"sov.fleet/s-hydration/400-registry"
 	"sov.fleet/s-latentlingua/02000-logic-libraries/ir"
+	qdag "sov.fleet/s-qdag/81000-active-source/pkg/qdag"
 )
 
 type GoPackage struct {
@@ -17,8 +19,6 @@ type GoPackage struct {
 	Imports    []string `json:"Imports"`
 	Deps       []string `json:"Deps"`
 }
-
-
 
 type WsCacheEntry struct {
 	LastModTime time.Time
@@ -490,40 +490,24 @@ func findDownstreamNodes(graph map[string][]string, startNode string) map[string
 }
 
 func topologicalSort(graph map[string][]string, nodes map[string]bool) ([]string, error) {
-	visited := make(map[string]int)
-	var order []string
-	var hasCycle bool
-
-	var visit func(string)
-	visit = func(n string) {
-		if visited[n] == 1 {
-			hasCycle = true
-			return
+	d := qdag.NewDAG[struct{}]()
+	for n := range nodes {
+		d.AddNode(n, struct{}{})
+	}
+	for n, deps := range graph {
+		if !nodes[n] {
+			continue
 		}
-		if visited[n] == 2 {
-			return
-		}
-		visited[n] = 1
-		for _, dep := range graph[n] {
-			if nodes[dep] || dep == n {
-				visit(dep)
+		for _, dep := range deps {
+			if nodes[dep] && dep != n {
+				if _, ok := d.Nodes[dep]; !ok {
+					d.AddNode(dep, struct{}{})
+				}
+				if err := d.AddEdge(dep, n, nil); err != nil {
+					return nil, err
+				}
 			}
 		}
-		visited[n] = 2
-		order = append(order, n)
 	}
-
-	for n := range nodes {
-		if visited[n] == 0 {
-			visit(n)
-		}
-	}
-
-	if hasCycle {
-		return nil, fmt.Errorf("dependency cycle detected")
-	}
-
-	return order, nil
+	return d.TopologicalSort()
 }
-
-
