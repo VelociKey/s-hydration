@@ -395,6 +395,10 @@ func getNewestModTimeWithDeps(wsName string, wsPath string, graph map[string][]s
 }
 
 func computeBazelTestTargets(wsPath string, bazelExe string, bazelOut string) []string {
+	if os.Getenv("DISABLE_TARGET_SLICING") == "true" {
+		return []string{"//..."}
+	}
+
 	cmdGit := exec.Command("git", "status", "--porcelain")
 	cmdGit.Dir = wsPath
 	var gitOut bytes.Buffer
