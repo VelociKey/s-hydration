@@ -473,7 +473,7 @@ func findDownstreamNodes(graph map[string][]string, startNode string) map[string
 	}
 	for n, deps := range graph {
 		for _, dep := range deps {
-			if _, ok := d.Nodes[dep]; !ok {
+			if _, ok := d.Nodes.Load(dep); !ok {
 				d.AddNode(dep, struct{}{})
 			}
 			_ = d.AddEdge(dep, n, nil)
@@ -493,7 +493,7 @@ func topologicalSort(graph map[string][]string, nodes map[string]bool) ([]string
 		}
 		for _, dep := range deps {
 			if nodes[dep] && dep != n {
-				if _, ok := d.Nodes[dep]; !ok {
+				if _, ok := d.Nodes.Load(dep); !ok {
 					d.AddNode(dep, struct{}{})
 				}
 				if err := d.AddEdge(dep, n, nil); err != nil {
