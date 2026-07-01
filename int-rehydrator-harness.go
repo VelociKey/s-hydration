@@ -209,6 +209,19 @@ func buildHarness(ctx context.Context, harnessPath string, targetName string, fo
 		} else {
 			target.OutputPath = localPath
 		}
+
+		isWasm := os.Getenv("REHYDRATOR_WASM") == "true" || strings.HasSuffix(strings.ToLower(localPath), ".wasm") || strings.Contains(strings.ToLower(target.SourcePath), "qapc")
+		if isWasm {
+			if strings.HasSuffix(strings.ToLower(localPath), ".exe") {
+				localPath = strings.TrimSuffix(localPath, ".exe") + ".wasm"
+			}
+			if strings.HasSuffix(strings.ToLower(globalPath), ".exe") {
+				globalPath = strings.TrimSuffix(globalPath, ".exe") + ".wasm"
+			}
+			if strings.HasSuffix(strings.ToLower(target.OutputPath), ".exe") {
+				target.OutputPath = strings.TrimSuffix(target.OutputPath, ".exe") + ".wasm"
+			}
+		}
 		target.WorkDir = wsPath
 
 		if !force {
