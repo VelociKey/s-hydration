@@ -248,7 +248,6 @@ func IntRehydratorMain() {
 			os.Exit(1)
 		}
 		slog.Info("Promoted artifact successfully", "src", out.LocalPath, "dest", out.GlobalPath)
-		_ = os.Remove(out.LocalPath)
 	}
 
 	cleanLocalWorkstationExecutables(projectRoot)

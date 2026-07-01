@@ -1,7 +1,6 @@
 package hydration
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"

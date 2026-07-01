@@ -194,12 +194,7 @@ func buildHarness(ctx context.Context, harnessPath string, targetName string, fo
 
 		if target.OutputPath != "" {
 			if !filepath.IsAbs(target.OutputPath) {
-				dirPart := filepath.Dir(target.OutputPath)
-				if dirPart == "." {
-					target.OutputPath = filepath.Join(wsPath, loc, target.OutputPath)
-				} else {
-					target.OutputPath = filepath.Join(wsPath, target.OutputPath)
-				}
+				target.OutputPath = filepath.Join(wsPath, target.OutputPath)
 			}
 			if runtime.GOOS == "windows" && isExecutableCat {
 				if !strings.HasSuffix(strings.ToLower(target.OutputPath), ".wasm") && !strings.HasSuffix(strings.ToLower(target.OutputPath), ".exe") && !strings.HasSuffix(strings.ToLower(target.OutputPath), ".cmd") && !strings.HasSuffix(strings.ToLower(target.OutputPath), ".bat") {
