@@ -15,16 +15,16 @@ This analysis compares the infrastructure and operational costs of running custo
 
 ---
 
-## 2. Capacity-Adaptive Scaling Stages (WASM Stack)
+## 2. Capacity-Adaptive Scaling Stages (WASM vs. Legacy Container Costs)
 
-Our controller dynamically adapts compute resource limits, network buffers, and replication routing as workload demands scale up from a single micro-instance:
+Our controller dynamically adapts compute resource limits, network buffers, and replication routing as workload demands scale up. This table contrasts the monthly running costs of our adaptive WASM stack against a legacy Cloud Run v2 containerized deployment:
 
-| Scaling Stage | Target Hardware Profile | Socket Buffer Size | Congestion Algorithm | Target RPS Capacity | Monthly Compute Cost |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **TierSingleRegion** | Local Laptop or single GCP `e2-micro` (2 vCPU, 1GB RAM) | 256 KB | Cubic | 0 – 500 RPS | **$0.00 – $6.00** |
-| **TierHorizontalScaling** | Horizontal cluster of `e2-medium` nodes (2 vCPU, 4GB RAM) | 4 MB | Cubic | 500 – 5,000 RPS | **$25.00 – $100.00** |
-| **TierMultiRegionSpreading** | Multi-region edge node nodes (us-east1, europe-west3) | 16 MB | Cubic | 5,000 – 25,000 RPS | **$100.00 – $500.00** |
-| **TierMeshFederation** | Global federated mesh slices with BBR congestion routing | 32 MB | **BBR** | 25,000+ RPS | **$500.00+** |
+| Scaling Stage | Target Hardware Profile | Socket Buffer Size | Target RPS Capacity | Monthly WASM Compute Cost | Monthly Legacy Container Cost | Actual Monthly Savings |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **TierSingleRegion** | Local Laptop or single GCP `e2-micro` (2 vCPU, 1GB RAM) | 256 KB | 0 – 500 RPS | **$0.00 – $6.00** | $15.00 – $30.00 | **Saves ~$24.00/mo** |
+| **TierHorizontalScaling** | Horizontal cluster of `e2-medium` nodes (2 vCPU, 4GB RAM) | 4 MB | 500 – 5,000 RPS | **$25.00 – $100.00** | $150.00 – $250.00 | **Saves ~$150.00/mo** |
+| **TierMultiRegionSpreading** | Multi-region edge nodes (5 regions, e.g. us-east1, europe-west3) | 16 MB | 5,000 – 25,000 RPS | **$100.00 – $500.00** | $500.00 – $1,200.00 | **Saves ~$700.00/mo** |
+| **TierMeshFederation** | Global federated mesh slices with BBR congestion routing | 32 MB | 25,000+ RPS | **$500.00+** | $2,500.00+ | **Saves ~$2,000.00+/mo** |
 
 ---
 
