@@ -9,6 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"fmt"
+	"io"
+	"sov.fleet/blake3"
 	"sov.fleet/s-hydration/400-registry"
 	qdag "sov.fleet/s-qdag/81000-active-source/pkg/qdag"
 )
@@ -23,7 +26,6 @@ func IntRehydratorMain() {
 	distBuild := flag.Bool("dist-build", false, "Distribution build mode: bundles binaries into packaging folder with symbols stripped")
 	bazelTest := flag.Bool("bazel-test", false, "Run verification testing suite using Bazel test runner instead of native Go test compiler")
 	wasm := flag.Bool("wasm", false, "Compile to WebAssembly target (forcing GOOS=js/wasip1 and GOARCH=wasm)")
-	deploy := flag.Bool("deploy", false, "Deploy WASM targets to GCP Artifact Registry and stage via GCS")
 
 	flag.Parse()
 
@@ -312,6 +314,12 @@ func IntRehydratorMain() {
 	for _, out := range allStagedOutputs {
 		sClean := filepath.Clean(out.LocalPath)
 		dClean := filepath.Clean(out.GlobalPath)
+
+		// Always compute and write Blake3 signature for the local built file
+		if err := writeBlake3Signature(out.LocalPath); err != nil {
+			slog.Error("Failed to write local Blake3 signature", "file", out.LocalPath, "error", err)
+		}
+
 		if sClean == dClean {
 			continue
 		}
@@ -322,18 +330,29 @@ func IntRehydratorMain() {
 			slog.Error("Failed to promote artifact", "src", out.LocalPath, "dest", out.GlobalPath, "error", err)
 			os.Exit(1)
 		}
+		// Write matching Blake3 signature for the promoted global destination
+		if err := copyFile(out.LocalPath+".blake3", out.GlobalPath+".blake3"); err != nil {
+			slog.Warn("Failed to copy Blake3 signature to destination", "error", err)
+		}
 		slog.Info("Promoted artifact successfully", "src", out.LocalPath, "dest", out.GlobalPath)
 	}
 
-	if *deploy {
-		slog.Info("Executing GCP Deployment capability run...")
-		err := DeployWasmArtifacts(context.Background(), projectRoot, allStagedOutputs)
-		if err != nil {
-			slog.Error("GCP Deployment failed", "error", err)
-			os.Exit(1)
-		}
-		slog.Info("GCP Deployment completed successfully")
+	cleanLocalWorkstationExecutables(projectRoot)
+}
+
+func writeBlake3Signature(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	hasher := blake3.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return err
 	}
 
-	cleanLocalWorkstationExecutables(projectRoot)
+	sigPath := filePath + ".blake3"
+	sigHex := fmt.Sprintf("blake3:%x", hasher.Sum(nil))
+	return os.WriteFile(sigPath, []byte(sigHex), 0644)
 }
