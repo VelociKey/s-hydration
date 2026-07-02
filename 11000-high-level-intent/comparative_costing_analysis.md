@@ -4,15 +4,14 @@ This analysis compares the infrastructure and operational costs of running custo
 
 ---
 
-## 1. Cost & Operational Metrics
+## 1. Cost & Operational Metrics (Per-Service Baseline)
 
-| Metric Parameter | Legacy Container (Cloud Run v2) | Sovereign WASM (runwasi/gVisor) | Cost & Performance Impact |
+| Metric Parameter | Legacy Container (Cloud Run v2) | Sovereign WASM (runwasi/gVisor) | Actual Dollar Savings Impact (Per Service) |
 | :--- | :---: | :---: | :--- |
-| **Artifact Size** | 150MB – 800MB (Base OS + App) | **5MB – 30MB** (Raw WASM) | **>90% reduction** in Artifact Registry storage fees. |
-| **Cold Start Latency** | 1,500ms – 5,000ms | **<10ms** | Eliminates latency spikes, providing immediate response without warming. |
-| **Minimum Warm Instances** | Required (1 per region to avoid cold starts) | **None** (Zero-Scale Native) | Saves **$15 – $30/month** per service per region in idle CPU charges. |
-| **Memory Footprint** | 256MB – 1024MB | **16MB – 64MB** (WASI Slab) | Up to **16x higher density**, cutting underlying compute costs. |
-| **Multi-Region Registry Replication** | Eager push of full image layers to all regions | **Adaptive Lazy Promotion** (Only copy when region activates) | Avoids duplicate cross-region network egress charges (~$0.02/GB). |
+| **Artifact Registry Storage** | $0.25 / month (500MB image replicated to 5 regions) | **$0.0075 / month** (15MB WASM artifact replicated to 5 regions) | **Saves $0.2425 / month** per service on storage fees. |
+| **Minimum Warm Instances** | $100.00 / month ($20/mo per region x 5 regions to avoid cold starts) | **$0.00 / month** (True Scale-to-Zero due to <10ms cold start) | **Saves $100.00 / month** per service on idling CPU charges. |
+| **Active Compute Memory** | $8.00 / month (512MB RAM standard container slice) | **$0.50 / month** (32MB RAM target WASI slab) | **Saves $7.50 / month** per active runtime instance. |
+| **Multi-Region Registry Replication** | $0.05 / deploy (Eager 250MB layer egress upload per region) | **$0.0003 / deploy** (Lazy 15MB push only when region wakes) | **Saves $0.0497 / deploy** per target region by avoiding egress. |
 
 ---
 
