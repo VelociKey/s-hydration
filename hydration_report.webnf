@@ -1,9 +1,41 @@
 HYDRATION-REPORT-V1
-2026-06-28T14:44:58-04:00
+2026-07-02T15:17:27-04:00
 AAIF-Hydration-Report-v1.0
 
-global|2026-06-28T14:44:56-04:00|2026-06-28T14:44:58-04:00|1.855s
+global|2026-07-02T15:17:27-04:00|2026-07-02T15:17:27-04:00|0s
 
-report|copyleft-test|2.5.6|14:44:56.399|14:44:57.149|14:44:57.878|N/A|FAILED: license compliance blocked promotion: blocked viral copyleft license (matched: "AFFERO GENERAL PUBLIC LICENSE") in LICENSE
+report|bazel-rules-flutter|2.1.0|0s|0s|0s|0s|valid
+report|bazel-rules-go|0.61.1|0s|0s|0s|0s|valid
+report|bazel|9.1.1|0s|0s|0s|0s|valid
+report|opentelemetry|0.155.0|0s|0s|0s|0s|valid
+report|opentofu|1.12.3|0s|0s|0s|0s|valid
+report|cosign|3.1.1|0s|0s|0s|0s|valid
+report|buildifier|8.5.1|0s|0s|0s|0s|valid
+report|firebase-tools|15.22.3|0s|0s|0s|0s|valid
+report|flutter-sdk-firehorse|3.44.4|0s|0s|0s|0s|valid
+report|gcloud-sdk|574.0.0|0s|0s|0s|0s|valid
+report|gh-cli|2.95.0|0s|0s|0s|0s|valid
+report|gitleaks|8.30.1|0s|0s|0s|0s|valid
+report|git|2.54.0|0s|0s|0s|0s|valid
+report|golang|1.26.4|0s|0s|0s|0s|valid
+report|jdk-25-headless|jdk-25.0.3+9|0s|0s|0s|0s|valid
+report|notary-notation|1.3.2|0s|0s|0s|0s|valid
+report|step-ca|0.30.2|0s|0s|0s|0s|valid
+report|trivy|0.71.2|0s|0s|0s|0s|valid
+report|wasm-opt|130|0s|0s|0s|0s|valid
+report|wasm-tools|1.252.0|0s|0s|0s|0s|valid
+report|wasmer|7.1.0|0s|0s|0s|0s|valid
+report|wasmtime|46.0.1|0s|0s|0s|0s|valid
+report|quic-go|0.60.0|0s|0s|0s|0s|valid
+report|qpack|0.6.0|0s|0s|0s|0s|valid
+report|go-tpm|0.9.8|0s|0s|0s|0s|valid
+report|go-spiffe|2.8.1|0s|0s|0s|0s|valid
+report|memguard|0.23.0|0s|0s|0s|0s|valid
+report|wazero|1.12.0|0s|0s|0s|0s|valid
+report|blake3|0.2.4|0s|0s|0s|0s|valid
+report|stripe-go|86.1.0|0s|0s|0s|0s|valid
+report|jules|1.0.0|0s|0s|0s|0s|valid
+report|gcloud-pubsub-emulator|0.8.33|0s|0s|0s|0s|valid
+report|gcloud-firestore-emulator|1.21.0|0s|0s|0s|0s|valid
 
 # SIGNATURE: ML-DSA-65:conductor-pqc-sig-7f9a84f3bd8a291a139a04aefd8329ce8c94bf8c18da597e882ea1298492fa12e52b80a427ce380d99faef29b8c0aef83cf82
