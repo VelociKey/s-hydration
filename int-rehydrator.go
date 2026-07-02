@@ -22,8 +22,13 @@ func IntRehydratorMain() {
 	testBuild := flag.Bool("test-build", false, "Test build output mode: promotions copy binaries to s-hydration target instead of s-forge")
 	distBuild := flag.Bool("dist-build", false, "Distribution build mode: bundles binaries into packaging folder with symbols stripped")
 	bazelTest := flag.Bool("bazel-test", false, "Run verification testing suite using Bazel test runner instead of native Go test compiler")
+	wasm := flag.Bool("wasm", false, "Compile to WebAssembly target (forcing GOOS=js/wasip1 and GOARCH=wasm)")
 
 	flag.Parse()
+
+	if *wasm {
+		os.Setenv("REHYDRATOR_WASM", "true")
+	}
 
 	if *workspaceFlag == "" {
 		slog.Error("Target workspace flag (-workspace) is required")
