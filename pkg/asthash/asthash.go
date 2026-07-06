@@ -6,8 +6,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
+	"unsafe"
 
 	"sov.fleet/blake3"
+)
+
+var (
+	prefixFunc  = []byte("func:")
+	prefixType  = []byte("type:")
+	prefixVal   = []byte("val:")
+	prefixField = []byte("field:")
 )
 
 // ComputeASTHash parses the Go file and computes a semantic hash of the AST structure,
@@ -20,6 +29,7 @@ func ComputeASTHash(filePath string) (string, error) {
 	}
 
 	hasher := blake3.New()
+	sw, hasStringWriter := any(hasher).(io.StringWriter)
 
 	// Walk the AST nodes and hash their structural representations
 	ast.Inspect(fileNode, func(n ast.Node) bool {
@@ -30,21 +40,49 @@ func ComputeASTHash(filePath string) (string, error) {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
 			// Hash function signature details (name, params, results)
-			hasher.Write([]byte("func:" + x.Name.Name))
+			if hasStringWriter {
+				_, _ = sw.WriteString("func:")
+				_, _ = sw.WriteString(x.Name.Name)
+			} else {
+				_, _ = hasher.Write(prefixFunc)
+				b := unsafe.Slice(unsafe.StringData(x.Name.Name), len(x.Name.Name))
+				_, _ = hasher.Write(b)
+			}
 		case *ast.TypeSpec:
 			// Hash struct definition type and names
-			hasher.Write([]byte("type:" + x.Name.Name))
+			if hasStringWriter {
+				_, _ = sw.WriteString("type:")
+				_, _ = sw.WriteString(x.Name.Name)
+			} else {
+				_, _ = hasher.Write(prefixType)
+				b := unsafe.Slice(unsafe.StringData(x.Name.Name), len(x.Name.Name))
+				_, _ = hasher.Write(b)
+			}
 		case *ast.ValueSpec:
 			// Hash constant/variable specifications
 			for _, name := range x.Names {
-				hasher.Write([]byte("val:" + name.Name))
+				if hasStringWriter {
+					_, _ = sw.WriteString("val:")
+					_, _ = sw.WriteString(name.Name)
+				} else {
+					_, _ = hasher.Write(prefixVal)
+					b := unsafe.Slice(unsafe.StringData(name.Name), len(name.Name))
+					_, _ = hasher.Write(b)
+				}
 			}
 		case *ast.StructType:
 			// Hash struct field layout
 			if x.Fields != nil {
 				for _, f := range x.Fields.List {
 					for _, name := range f.Names {
-						hasher.Write([]byte("field:" + name.Name))
+						if hasStringWriter {
+							_, _ = sw.WriteString("field:")
+							_, _ = sw.WriteString(name.Name)
+						} else {
+							_, _ = hasher.Write(prefixField)
+							b := unsafe.Slice(unsafe.StringData(name.Name), len(name.Name))
+							_, _ = hasher.Write(b)
+						}
 					}
 				}
 			}

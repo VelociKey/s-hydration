@@ -266,7 +266,7 @@ func fetchLatestFlutterRelease() (string, error) {
 }
 
 func (h *SovereignPurifier) VerifyLocalState() error {
-	records, err := ParseSBOM(SbomPath)
+	records, err := ParseSBOM(SbomInternalPath)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func (h *SovereignPurifier) updateSBOMVersionAndResetHash(path string, name stri
 }
 
 func (h *SovereignPurifier) UpgradeManifestUpstream(dryRun bool) error {
-	records, err := ParseSBOM(SbomPath)
+	records, err := ParseSBOM(SbomInternalPath)
 	if err != nil {
 		return err
 	}
@@ -454,11 +454,17 @@ func (h *SovereignPurifier) UpgradeManifestUpstream(dryRun bool) error {
 					status = "DRIFT (Update Avail) [cached]"
 				}
 				if !dryRun {
-					if err := h.updateSBOMVersionAndResetHash(SbomPath, rec.Name, latest); err == nil {
+					err1 := h.updateSBOMVersionAndResetHash(SbomInternalPath, rec.Name, latest)
+					err2 := h.updateSBOMVersionAndResetHash(SbomDeployablePath, rec.Name, latest)
+					if err1 == nil && err2 == nil {
 						status = "UPDATED IN MANIFEST"
 						updatedRecords = append(updatedRecords, rec.Name)
 					} else {
-						status = "UPDATE ERROR: " + err.Error()
+						if err1 != nil {
+							status = "UPDATE ERROR (Internal): " + err1.Error()
+						} else {
+							status = "UPDATE ERROR (Deployable): " + err2.Error()
+						}
 					}
 				}
 			} else {

@@ -246,33 +246,42 @@ func computeBlake3(filePath string) (string, error) {
 }
 
 func updateSBOM(name, version, hash string) error {
-	sbomPath := `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.external_artifact.webnf`
-	content, err := os.ReadFile(sbomPath)
-	if err != nil {
-		return err
+	paths := []string{
+		`C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.internal.webnf`,
+		`C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.deployable.webnf`,
 	}
 
-	lines := strings.Split(string(content), "\n")
-	found := false
-	for i, line := range lines {
-		if strings.HasPrefix(line, name+"|") {
-			parts := strings.Split(line, "|")
-			if len(parts) >= 8 {
-				parts[1] = version
-				parts[3] = hash
-				parts[6] = time.Now().Format("2006-01-02T15:04:05-07:00")
-				lines[i] = strings.Join(parts, "|")
-				found = true
-				break
+	for _, sbomPath := range paths {
+		content, err := os.ReadFile(sbomPath)
+		if err != nil {
+			return err
+		}
+
+		lines := strings.Split(string(content), "\n")
+		found := false
+		for i, line := range lines {
+			if strings.HasPrefix(line, name+"|") {
+				parts := strings.Split(line, "|")
+				if len(parts) >= 8 {
+					parts[1] = version
+					parts[3] = hash
+					parts[6] = time.Now().Format("2006-01-02T15:04:05-07:00")
+					lines[i] = strings.Join(parts, "|")
+					found = true
+					break
+				}
 			}
 		}
-	}
 
-	if !found {
-		// Append if not exists
-		newLine := fmt.Sprintf("%s|%s||%s|0|0|%s|ACTOR||SOURCE", name, version, hash, time.Now().Format("2006-01-02T15:04:05-07:00"))
-		lines = append(lines, newLine)
-	}
+		if !found {
+			// Append if not exists
+			newLine := fmt.Sprintf("%s|%s||%s|0|0|%s|ACTOR||SOURCE", name, version, hash, time.Now().Format("2006-01-02T15:04:05-07:00"))
+			lines = append(lines, newLine)
+		}
 
-	return os.WriteFile(sbomPath, []byte(strings.Join(lines, "\n")), 0644)
+		if err := os.WriteFile(sbomPath, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

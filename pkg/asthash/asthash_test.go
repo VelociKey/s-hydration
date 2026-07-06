@@ -118,3 +118,34 @@ func Process() {
 		t.Error("expected non-empty hash for nested structure")
 	}
 }
+
+func BenchmarkComputeASTHash(b *testing.B) {
+	content := `package benchmark
+type Record struct {
+	ID        int
+	Name      string
+	Value     float64
+	IsActive  bool
+}
+
+func ProcessRecord(r *Record) string {
+	if r.IsActive {
+		return r.Name
+	}
+	return ""
+}
+`
+	tmpDir := b.TempDir()
+	filePath := filepath.Join(tmpDir, "benchmark.go")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		b.Fatalf("failed to write temp file: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ComputeASTHash(filePath)
+		if err != nil {
+			b.Fatalf("failed: %v", err)
+		}
+	}
+}

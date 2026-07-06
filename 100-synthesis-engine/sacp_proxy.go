@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"sov.fleet/s-logiclibrary/00200-logic-libraries/bicodec"
+	discard "sov.fleet/s-logiclibrary/81000-active-source/pkg/200-enhancers/discard"
 )
 
 // AuthorityLevel coordinates monotonic permissions for agent capabilities.
@@ -170,8 +171,8 @@ func NewSACPCalleeProxy(buf []byte) *SACPCalleeProxy {
 	if err != nil {
 		return &SACPCalleeProxy{}
 	}
-	_ = hasHeader
-	_ = hasCap
+	discard.Discard(hasHeader)
+	discard.Discard(hasCap)
 	return &SACPCalleeProxy{
 		SACPProxyBase: SACPProxyBase{header: h},
 		cap:           c,

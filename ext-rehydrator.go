@@ -33,7 +33,8 @@ const (
 	ProtoH3
 	ShadowDir         = `C:\aCogSpaceSeed\00flow\s-hydrationcache\c0990-ephemeral-scratch\C0990-verify-download`
 	TrivyPath         = `C:\aCogSpaceSeed\00flow\s-forge\91000-external-executables\trivy\trivy.exe`
-	SbomPath          = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.external_artifact.webnf`
+	SbomInternalPath   = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.internal.webnf`
+	SbomDeployablePath = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\sbom.deployable.webnf`
 	ExperiencePath    = `C:\aCogSpaceSeed\00flow\s-forge\90100-rehydration-seed\hydration_experience.webnf`
 	MetabolicLimitDir = 100 * 1024 * 1024 // 100MB threshold for sequential massive promotion
 )
@@ -266,7 +267,7 @@ func (h *SovereignPurifier) Run(check, noskip bool, only string) error {
 	}
 
 	// Ingest primary SBOM target list
-	records, err := ParseSBOM(SbomPath)
+	records, err := ParseSBOM(SbomInternalPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse SBOM manifest: %w", err)
 	}
@@ -874,14 +875,20 @@ workspace_harness {
 				slog.Warn("Bypassing integrity check for placeholder/empty hash, accepting calculated hash", "name", rec.Name, "calculated", prunedHash)
 				if h.updateHashes {
 					slog.Info("Auto-updating manifest placeholder with verified hash", "name", rec.Name, "got", prunedHash)
-					if err := h.updateSBOMHash(SbomPath, rec.Name, prunedHash); err != nil {
-						return fmt.Errorf("failed to update manifest hash for %s: %w", rec.Name, err)
+					if err := h.updateSBOMHash(SbomInternalPath, rec.Name, prunedHash); err != nil {
+						return fmt.Errorf("failed to update internal manifest hash for %s: %w", rec.Name, err)
+					}
+					if err := h.updateSBOMHash(SbomDeployablePath, rec.Name, prunedHash); err != nil {
+						return fmt.Errorf("failed to update deployable manifest hash for %s: %w", rec.Name, err)
 					}
 				}
 			} else if h.updateHashes {
 				slog.Warn("Auto-updating manifest: integrity mismatch vetted and accepted", "name", rec.Name, "expected", rec.PrunedHash, "got", prunedHash)
-				if err := h.updateSBOMHash(SbomPath, rec.Name, prunedHash); err != nil {
-					return fmt.Errorf("failed to update manifest hash for %s: %w", rec.Name, err)
+				if err := h.updateSBOMHash(SbomInternalPath, rec.Name, prunedHash); err != nil {
+					return fmt.Errorf("failed to update internal manifest hash for %s: %w", rec.Name, err)
+				}
+				if err := h.updateSBOMHash(SbomDeployablePath, rec.Name, prunedHash); err != nil {
+					return fmt.Errorf("failed to update deployable manifest hash for %s: %w", rec.Name, err)
 				}
 			} else {
 				return fmt.Errorf("integrity violation on %s! Expected: %s, Got: %s", rec.Name, rec.PrunedHash, prunedHash)
@@ -2002,7 +2009,7 @@ func (h *SovereignPurifier) WriteReport(noskip bool, start time.Time, finish tim
 	buf.WriteString("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n")
 
 	if !noskip {
-		records, _ := ParseSBOM(SbomPath)
+		records, _ := ParseSBOM(SbomInternalPath)
 		for _, rec := range records {
 			webnf.WriteString(fmt.Sprintf("report|%s|%s|0s|0s|0s|0s|valid\n", rec.Name, rec.Version))
 			buf.WriteString(fmt.Sprintf("| **%s** | %s | 0s | 0s | 0s | 0s | 0 times and valid |\n", rec.Name, rec.Version))

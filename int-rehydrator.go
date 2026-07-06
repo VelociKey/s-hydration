@@ -315,9 +315,10 @@ func IntRehydratorMain() {
 		sClean := filepath.Clean(out.LocalPath)
 		dClean := filepath.Clean(out.GlobalPath)
 
-		// Always compute and write Blake3 signature for the local built file
-		if err := writeBlake3Signature(out.LocalPath); err != nil {
-			slog.Error("Failed to write local Blake3 signature", "file", out.LocalPath, "error", err)
+		targetName := strings.TrimSuffix(filepath.Base(out.LocalPath), ".exe")
+		// Compute Blake3 hash and record in sovereign notarization registry
+		if err := notarizeArtifact(projectRoot, targetName, out.LocalPath); err != nil {
+			slog.Error("Failed to notarize artifact", "target", targetName, "error", err)
 		}
 
 		// Run Trivy Security Vulnerability Scan on target before promotion/commit
@@ -336,10 +337,7 @@ func IntRehydratorMain() {
 			slog.Error("Failed to promote artifact", "src", out.LocalPath, "dest", out.GlobalPath, "error", err)
 			os.Exit(1)
 		}
-		// Write matching Blake3 signature for the promoted global destination
-		if err := copyFile(out.LocalPath+".blake3", out.GlobalPath+".blake3"); err != nil {
-			slog.Warn("Failed to copy Blake3 signature to destination", "error", err)
-		}
+		// Blake3 hash is recorded in sovereign notarization registry — no sidecar to copy
 		slog.Info("Promoted artifact successfully", "src", out.LocalPath, "dest", out.GlobalPath)
 	}
 
@@ -353,19 +351,108 @@ func runTrivyScan(filePath string) error {
 	return nil
 }
 
-func writeBlake3Signature(filePath string) error {
+// blake3Hash computes the blake3 hash of a file and returns it as "blake3:<hex>".
+func blake3Hash(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("blake3Hash: %w", err)
 	}
 	defer f.Close()
 
 	hasher := blake3.New()
 	if _, err := io.Copy(hasher, f); err != nil {
+		return "", fmt.Errorf("blake3Hash: %w", err)
+	}
+	return fmt.Sprintf("blake3:%x", hasher.Sum(nil)), nil
+}
+
+// notarizeArtifact computes blake3 hash and writes/updates a SOVEREIGN record
+// in the appropriate sovereign notarization registry (sbom.internal.webnf or sbom.deployable.webnf).
+func notarizeArtifact(projectRoot, targetName, filePath string) error {
+	hash, err := blake3Hash(filePath)
+	if err != nil {
 		return err
 	}
 
-	sigPath := filePath + ".blake3"
-	sigHex := fmt.Sprintf("blake3:%x", hasher.Sum(nil))
-	return os.WriteFile(sigPath, []byte(sigHex), 0644)
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return fmt.Errorf("notarizeArtifact: %w", err)
+	}
+
+	// 1. Determine if it is deployable or internal
+	isWasm := strings.HasSuffix(strings.ToLower(filePath), ".wasm")
+	isDeployable := false
+	category := "TOOLCHAIN"
+
+	if isWasm {
+		isDeployable = true
+		category = "WASM"
+	} else if strings.HasPrefix(targetName, "o-q") || strings.HasPrefix(targetName, "s-emulator") {
+		category = "EMULATOR"
+	} else if strings.Contains(targetName, "rehydrator") || targetName == "mod-aligner" || strings.HasPrefix(targetName, "webnf") || strings.HasPrefix(targetName, "sn-") {
+		category = "TOOLCHAIN"
+	} else {
+		// Final production/deployable services (like o-afflume, o-banking, etc.)
+		isDeployable = true
+		category = "SERVICE"
+	}
+
+	registryName := "sbom.internal.webnf"
+	if isDeployable {
+		registryName = "sbom.deployable.webnf"
+	}
+
+	registryPath := filepath.Join(projectRoot,
+		"00flow", "s-forge", "90100-rehydration-seed", registryName)
+
+	content, err := os.ReadFile(registryPath)
+	if err != nil {
+		return fmt.Errorf("notarizeArtifact: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	found := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "SBOM-V2") || strings.HasPrefix(trimmed, "NOTARIZATION") {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) > 3 && parts[0] == targetName {
+			// Update existing record hash and size
+			parts[3] = hash
+			if len(parts) > 5 {
+				parts[5] = fmt.Sprintf("%d", info.Size())
+			}
+			if len(parts) > 8 {
+				parts[8] = category
+			}
+			lines[i] = strings.Join(parts, "|")
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		// Append new SOVEREIGN notarization record
+		now := strings.Replace(strings.Replace(
+			fmt.Sprintf("%s", os.Getenv("BUILD_TIMESTAMP")),
+			"", "", 0), "", "", 0)
+		if now == "" {
+			now = "2026-07-04T00:00:00Z"
+		}
+		record := fmt.Sprintf("%s|1.0.0||%s|0|%d|%s|SOVEREIGN|%s",
+			targetName, hash, info.Size(), now, category)
+
+		// Insert before trailing blank lines
+		insertIdx := len(lines)
+		for insertIdx > 0 && strings.TrimSpace(lines[insertIdx-1]) == "" {
+			insertIdx--
+		}
+		lines = append(lines[:insertIdx], append([]string{record}, lines[insertIdx:]...)...)
+	}
+
+	slog.Info("Sovereign notarization recorded", "registry", registryName, "target", targetName, "category", category, "hash", hash, "size", info.Size())
+	return os.WriteFile(registryPath, []byte(strings.Join(lines, "\n")), 0644)
 }

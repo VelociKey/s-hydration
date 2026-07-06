@@ -52,7 +52,8 @@ func main() {
 	flag.Parse()
 
 	projectRoot := `C:\aCogSpaceSeed`
-	sbomPath := filepath.Join(projectRoot, "00flow", "s-forge", "90100-rehydration-seed", "sbom.external_artifact.webnf")
+	sbomInternalPath := filepath.Join(projectRoot, "00flow", "s-forge", "90100-rehydration-seed", "sbom.internal.webnf")
+	sbomDeployablePath := filepath.Join(projectRoot, "00flow", "s-forge", "90100-rehydration-seed", "sbom.deployable.webnf")
 	reportPath := filepath.Join(projectRoot, "00flow", "s-hydration", "hydration_check_results.md")
 
 	var report strings.Builder
@@ -61,11 +62,29 @@ func main() {
 
 	// 1. External Ingestion Audit
 	if *scope == "external" || *scope == "all" {
-		slog.Info("Auditing External Artifact Registry (SBOM)...", "path", sbomPath)
-		records, err := hydration.ParseSBOM(sbomPath)
-		if err != nil {
-			slog.Error("Failed to parse SBOM", "error", err)
+		slog.Info("Auditing External Artifact Registries...", "internal", sbomInternalPath, "deployable", sbomDeployablePath)
+		recordsInternal, err1 := hydration.ParseSBOM(sbomInternalPath)
+		if err1 != nil {
+			slog.Error("Failed to parse internal SBOM", "error", err1)
 			os.Exit(1)
+		}
+		recordsDeployable, err2 := hydration.ParseSBOM(sbomDeployablePath)
+		if err2 != nil {
+			slog.Error("Failed to parse deployable SBOM", "error", err2)
+			os.Exit(1)
+		}
+
+		merged := make(map[string]hydration.ArtifactRecord)
+		for _, rec := range recordsInternal {
+			merged[rec.Name] = rec
+		}
+		for _, rec := range recordsDeployable {
+			merged[rec.Name] = rec
+		}
+
+		var records []hydration.ArtifactRecord
+		for _, rec := range merged {
+			records = append(records, rec)
 		}
 
 		report.WriteString("## External Ingestion Registry (SBOM)\n\n")
